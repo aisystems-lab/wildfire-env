@@ -4,6 +4,7 @@ from environment.enums import DroughtLevel, VegetationType, TerrainType
 # Environment settings
 MAX_TIMESTEPS = 1000
 HELICOPTER_SPEED = 3
+SEED = 42
 
 modelWidth= 120000
 modelHeight= 80000

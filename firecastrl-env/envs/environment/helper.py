@@ -102,6 +102,7 @@ def get_image_data(
     ]
 
     return result
+
 def get_input_data(
     input_data: Optional[str],
     grid_width: int,
@@ -150,7 +151,6 @@ def get_elevation_data(
     )
 
 def get_land_cover_zone_index(config: dict, landcoverImage) -> Optional[np.ndarray]:
-    # landcover_image = "data/landcover_1200x813.png"
 
     # RGB string to land cover index (MODIS IGBP)
     rgb_to_land_cover_index: Dict[str, int] = {
@@ -188,25 +188,9 @@ def get_land_cover_zone_index(config: dict, landcoverImage) -> Optional[np.ndarr
 def get_grid_index_for_location(grid_x: int, grid_y: int, width: int) -> int:
     return grid_x + grid_y * width
 
-def generate_fire_status_map_from_cells(cells: List[Cell], width: int, height: int) -> List[List[int]]:
-    fire_status_list: List[List[int]] = []
-
-    for row in range(height):
-        start = row * width
-        end = start + width
-
-        row_data = []
-        for cell in cells[start:end]:
-            fire_state = getattr(cell, "fireState", FireState.Unburnt)
-            burn_index = getattr(cell, "burnIndex", BurnIndex.Low)
-            if cell.isRiver:
-                row_data.append(-1)  # Water
-                continue
-            row_data.append(fire_state * 3 + burn_index)  # Range: 0–8
-
-        fire_status_list.append(row_data)
-
-    return fire_status_list
+ignition_times = lambda cells, w, h: np.array(
+    [getattr(c, "ignitionTime", np.inf) for c in cells], dtype=np.float32
+).reshape(h, w)
 
 def perform_helitack(cells : List[Cell],array_x: int, array_y: int) -> int:
     print(f"Helitack coordinates: ({array_x}, {array_y})")
@@ -294,8 +278,5 @@ def populateCellsData(env_id,zones):
                     "baseElevation": 0 if is_edge else (elevation[index] if elevation else None),
                     "isRiver": True if zi in nonBurnableZones else False
                 }
-
-                # self.totalCellCountByZone[zi] = self.totalCellCountByZone.get(zi, 0) + 1
                 cells.append(Cell(**cell_options))
-        # print('Cells',self.cells)
         return cells
