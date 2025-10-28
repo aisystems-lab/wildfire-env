@@ -22,7 +22,7 @@ class WildfireEnv(gym.Env):
         self.env_id = env_id
         self.action_space = spaces.Discrete(5)
         self.observation_space = spaces.Dict({
-            'cells': spaces.Box(low=0.0, high=math.inf, shape=(160, 240), dtype=np.float64),
+            'cells': spaces.Box(low=0.0, high=math.inf, shape=(160, 240), dtype=np.float32),
             'helicopter_coord': spaces.Box(low=np.array([0, 0]), high=np.array([239, 159]), dtype=np.int32),
             'quenched_cells': spaces.Box(low=0.0, high=38400.0, shape=(1,), dtype=np.float32)
         })

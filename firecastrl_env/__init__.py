@@ -1,5 +1,5 @@
 from gymnasium.envs.registration import register
-import envs.config as config
+from .envs import config as config
 
 register(
     id="firecastrl/Wildfire-env0",

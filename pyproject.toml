@@ -23,6 +23,12 @@ dependencies = [
 [tool.hatch.build.targets.wheel]
 packages = ["firecastrl_env"]
 
+[tool.hatch.build]
+include = [
+  "+firecastrl_env/**/*.py",
+  "+firecastrl_env/envs/training_environments/*.png"
+]
+
 [project.urls]
 Homepage = "https://github.com/aisystems-lab/firecast-rl"
 Repository = "https://github.com/aisystems-lab/firecast-rl"
