@@ -322,7 +322,7 @@ Key parameters can be modified in `firecastrl_env/envs/config.py`:
 | `gridWidth` | 240 | Grid width (cells) |
 | `gridHeight` | 160 | Grid height (cells) |
 | `cellSize` | 250 | Cell size (meters) |
-| `MAX_TIMESTEPS` | 500 | Episode truncation limit |
+| `MAX_TIMESTEPS` | 2000 | Episode truncation limit |
 | `HELICOPTER_SPEED` | 3 | Cells moved per action |
 | `HELITACK_RADIUS` | 7 | Effective radius of water drops |
 
