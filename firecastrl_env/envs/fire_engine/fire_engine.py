@@ -23,38 +23,6 @@ end_of_low_intensity_fire_probability = {
     7: 1.0
 }
 
-# def nonburnable_cell_between(cells: List[Cell], width: int, x0: int, y0: int, x1: int, y1: int, burn_index: BurnIndex):
-#     result = False
-#     def check_point(x, y):
-#         nonlocal result
-#         idx = get_grid_index_for_location(x, y, width)
-#         if not cells[idx].is_burnable_for_bi(burn_index):
-#             result = True
-#     for_each_point_between(x0, y0, x1, y1, check_point)
-#     return result
-
-# def get_grid_cell_neighbors(cells: List[Cell], i: int, width: int, height: int, neighbors_dist: int, burn_index: BurnIndex):
-#     neighbours = []
-#     queue = [i]
-#     processed = {i: True}
-#     x0, y0 = i % width, i // width
-#     any_nonburnable_cells = False
-
-#     while queue:
-#         j = queue.pop(0)
-#         x1, y1 = j % width, j // width
-#         for diff in direct_neighbours:
-#             nx, ny = x1 + diff.x, y1 + diff.y
-#             n_idx = get_grid_index_for_location(nx, ny, width)
-#             if 0 <= nx < width and 0 <= ny < height and not processed.get(n_idx) and within_dist(x0, y0, nx, ny, neighbors_dist):
-#                 if not cells[n_idx].is_burnable_for_bi(burn_index):
-#                     any_nonburnable_cells = True
-#                 elif not any_nonburnable_cells or not nonburnable_cell_between(cells, width, nx, ny, x0, y0, burn_index):
-#                     neighbours.append(n_idx)
-#                     queue.append(n_idx)
-#                 processed[n_idx] = True
-#     return neighbours
-
 class FireEngine:
     def __init__(self, wind : Wind, config):
         # self.cells : List[Cell] = cells
