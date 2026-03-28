@@ -188,9 +188,10 @@ def get_land_cover_zone_index(config: dict, landcoverImage) -> Optional[np.ndarr
 def get_grid_index_for_location(grid_x: int, grid_y: int, width: int) -> int:
     return grid_x + grid_y * width
 
-ignition_times = lambda cells, w, h: np.array(
-    [getattr(c, "ignitionTime", np.inf) for c in cells], dtype=np.float32
-).reshape(h, w)
+def ignition_times(cells, w, h):
+    raw = np.array([getattr(c, "ignitionTime", np.inf) for c in cells], dtype=np.float32)
+    np.clip(raw, None, 1e6, out=raw)
+    return raw.reshape(h, w)
 
 def perform_helitack(cells : List[Cell],array_x: int, array_y: int) -> int:
 
