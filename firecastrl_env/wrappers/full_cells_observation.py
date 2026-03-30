@@ -3,8 +3,6 @@ import gymnasium as gym
 from gymnasium import ObservationWrapper, spaces
 from typing import Dict, Any, List, Optional
 
-from firecastrl_env.envs.environment.enums import FireState, DroughtLevel, VegetationType
-
 
 class CellObservationWrapper(ObservationWrapper):
     """
@@ -100,18 +98,12 @@ class CellObservationWrapper(ObservationWrapper):
         self.elevation_cap = float(elevation_cap)
         self.helitack_cap = float(helitack_cap)
         
-        # Get grid dimensions from base environment
         base_env = self.env.unwrapped
-        self.grid_height = getattr(base_env, 'gridHeight')
-        self.grid_width = getattr(base_env, 'gridWidth')
-        zones = getattr(base_env, 'zones', None)
-        zones_count = len(zones) if zones is not None else 1
-        self._zones_norm = max(1, zones_count - 1)
+        self.grid_height = getattr(base_env, "gridHeight")
+        self.grid_width = getattr(base_env, "gridWidth")
         
-        # Calculate feature count (position adds 2 channels)
-        self.feature_count = len(self.properties) + (1 if 'position' in self.properties else 0)
+        self.feature_count = len(self.properties) + (1 if "position" in self.properties else 0)
         
-        # Build new observation space
         base = self.env.observation_space
         assert isinstance(base, spaces.Dict), "CellObservationWrapper expects Dict observation space"
         
@@ -131,105 +123,22 @@ class CellObservationWrapper(ObservationWrapper):
         
         self.observation_space = spaces.Dict(new_spaces)
 
-    def _normalize_value(self, value: float, cap: float) -> float:
-        """Normalize a value to [0, 1] range with capping."""
-        if value is None:
-            return 0.0
-        if np.isinf(value) or np.isnan(value):
-            value = cap
-        return float(np.clip(value, 0.0, cap) / cap)
-
     def observation(self, obs: Dict[str, Any]) -> Dict[str, Any]:
-        """Transform observation by adding detailed cell features."""
         base_env = self.env.unwrapped
-        cells = getattr(base_env, 'cells', [])
+        features = base_env.get_detailed_cell_observation(
+            self.properties,
+            ignition_cap=self.ignition_cap,
+            spread_cap=self.spread_cap,
+            burn_time_cap=self.burn_time_cap,
+            elevation_cap=self.elevation_cap,
+            helitack_cap=self.helitack_cap,
+        )
         
-        # Initialize feature tensor
-        features = np.zeros((self.feature_count, self.grid_height, self.grid_width), dtype=np.float32)
-        
-        # Extract features based on selected properties
-        for row in range(self.grid_height):
-            row_start = row * self.grid_width
-            for col in range(self.grid_width):
-                cell_idx = row_start + col
-                cell = cells[cell_idx]
-                
-                feature_idx = 0
-                
-                for prop in self.properties:
-                    if prop == 'ignition_time':
-                        ignition = getattr(cell, 'ignitionTime', np.inf)
-                        features[feature_idx, row, col] = self._normalize_value(ignition, self.ignition_cap)
-                        feature_idx += 1
-                    
-                    elif prop == 'spread_rate':
-                        spread = getattr(cell, 'spreadRate', 0.0)
-                        features[feature_idx, row, col] = self._normalize_value(spread, self.spread_cap)
-                        feature_idx += 1
-                    
-                    elif prop == 'burn_time':
-                        burn_time = getattr(cell, 'burnTime', 0.0)
-                        features[feature_idx, row, col] = self._normalize_value(burn_time, self.burn_time_cap)
-                        feature_idx += 1
-                    
-                    elif prop == 'fire_state':
-                        fire_state = getattr(cell, 'fireState', FireState.Unburnt)
-                        features[feature_idx, row, col] = float(fire_state) / 2.0
-                        feature_idx += 1
-                    
-                    elif prop == 'is_river':
-                        is_river = getattr(cell, 'isRiver', False)
-                        features[feature_idx, row, col] = 1.0 if is_river else 0.0
-                        feature_idx += 1
-                    
-                    elif prop == 'is_unburnt_island':
-                        is_island = getattr(cell, 'isUnburntIsland', False)
-                        features[feature_idx, row, col] = 1.0 if is_island else 0.0
-                        feature_idx += 1
-                    
-                    elif prop == 'helitack_drops':
-                        drops = getattr(cell, 'helitackDropCount', 0.0)
-                        features[feature_idx, row, col] = self._normalize_value(drops, self.helitack_cap)
-                        feature_idx += 1
-                    
-                    elif prop == 'elevation':
-                        elevation = getattr(cell, 'baseElevation', 0.0)
-                        features[feature_idx, row, col] = self._normalize_value(elevation, self.elevation_cap)
-                        feature_idx += 1
-                    
-                    elif prop == 'zone':
-                        zone_idx = int(getattr(cell, 'zoneIdx', 0) or 0)
-                        features[feature_idx, row, col] = float(zone_idx) / float(self._zones_norm)
-                        feature_idx += 1
-                    
-                    elif prop == 'vegetation':
-                        zone = getattr(cell, 'zone', None)
-                        veg = getattr(zone, 'vegetation', VegetationType.Barren) if zone else VegetationType.Barren
-                        veg_val = int(getattr(veg, 'value', 0))
-                        features[feature_idx, row, col] = float(veg_val) / 17.0
-                        feature_idx += 1
-                    
-                    elif prop == 'drought':
-                        zone = getattr(cell, 'zone', None)
-                        drought = getattr(zone, 'droughtLevel', DroughtLevel.NoDrought) if zone else DroughtLevel.NoDrought
-                        drought_val = int(getattr(drought, 'value', 0))
-                        features[feature_idx, row, col] = float(drought_val) / 3.0
-                        feature_idx += 1
-                    
-                    elif prop == 'position':
-                        x = getattr(cell, 'x', col)
-                        y = getattr(cell, 'y', row)
-                        features[feature_idx, row, col] = float(x) / float(self.grid_width - 1)
-                        features[feature_idx + 1, row, col] = float(y) / float(self.grid_height - 1)
-                        feature_idx += 2
-        
-        # Create new observation dict
         new_obs = dict(obs)
-        new_obs['detailed_cells'] = features
+        new_obs["detailed_cells"] = features
         
-        # Remove basic cells if requested
-        if self.remove_basic_cells and 'cells' in new_obs:
-            del new_obs['cells']
+        if self.remove_basic_cells and "cells" in new_obs:
+            del new_obs["cells"]
         
         return new_obs
 

@@ -1,16 +1,18 @@
-from .. import config
 import math
 import random
-from typing import List, Dict, Callable
-from ..environment.vector import Vector2
-from ..environment.cell import Cell
-from ..environment.enums import BurnIndex,FireState
-from .utils import dist, within_dist, get_grid_index_for_location, for_each_point_between, get_grid_cell_neighbors
-from .fire_spread_rate import get_fire_spread_rate
+from typing import Dict
+from ..environment.enums import BurnIndex, FireState
+from ..environment.array_state import (
+    ArrayFireState,
+    burn_index_for_values,
+    can_survive_fire,
+    is_burnable_for_index,
+)
+from .utils import for_each_point_between
+from .fire_spread_rate import get_fire_spread_rate_from_arrays
 from ..environment.wind import Wind
 
 model_day = 1440  # minutes
-rng = random.Random("inferno-tactics")
 
 end_of_low_intensity_fire_probability = {
     0: 0.0,
@@ -37,57 +39,147 @@ class FireEngine:
         self.fire_did_stop = False
         self.day = 0
         self.burned_cells_in_zone = {}
+        self._spread_offsets = self._build_spread_offsets()
 
-    def cell_at(self, cells : List[Cell],x, y):
-        grid_x = int(x // self.cell_size)
-        grid_y = int(y // self.cell_size)
-        return cells[get_grid_index_for_location(grid_x, grid_y, self.grid_width)]
+    def _build_spread_offsets(self):
+        offsets = []
+        max_offset = int(math.ceil(self.neighbors_dist))
+        for dy in range(-max_offset, max_offset + 1):
+            for dx in range(-max_offset, max_offset + 1):
+                if dx == 0 and dy == 0:
+                    continue
+                if dx * dx + dy * dy > self.neighbors_dist ** 2:
+                    continue
 
-    def update_fire(self, cells : List[Cell],time):
+                line_points = []
+
+                def callback(x, y, _):
+                    line_points.append((x, y))
+
+                for_each_point_between(0, 0, dx, dy, callback)
+                offsets.append((dx, dy, tuple(line_points[1:-1])))
+        return offsets
+
+    def _iter_burnable_neighbors(
+        self,
+        state: ArrayFireState,
+        x0: int,
+        y0: int,
+        source_burn_index: int,
+    ):
+        nonburnable = state.is_nonburnable
+        fire_lines = state.is_fire_line
+
+        for dx, dy, between_points in self._spread_offsets:
+            nx = x0 + dx
+            ny = y0 + dy
+            if not (0 <= nx < self.grid_width and 0 <= ny < self.grid_height):
+                continue
+
+            if not is_burnable_for_index(
+                bool(nonburnable[ny, nx]),
+                bool(fire_lines[ny, nx]),
+                source_burn_index,
+            ):
+                continue
+
+            blocked = False
+            for px, py in between_points:
+                ix = x0 + px
+                iy = y0 + py
+                if not (0 <= ix < self.grid_width and 0 <= iy < self.grid_height):
+                    blocked = True
+                    break
+                if not is_burnable_for_index(
+                    bool(nonburnable[iy, ix]),
+                    bool(fire_lines[iy, ix]),
+                    source_burn_index,
+                ):
+                    blocked = True
+                    break
+
+            if not blocked:
+                yield nx, ny
+
+    def update_fire_array(self, state: ArrayFireState, time: float) -> None:
         new_day = int(time // model_day)
         if new_day != self.day:
             self.day = new_day
             if random.random() <= end_of_low_intensity_fire_probability.get(new_day, 0.0):
                 self.end_of_low_intensity_fire = True
 
-        new_ignition_data = {}
-        new_fire_state_data = {}
+        new_ignition_data: Dict[tuple[int, int], float] = {}
+        new_fire_state_data: Dict[tuple[int, int], int] = {}
         self.fire_did_stop = True
 
-        for i, cell in enumerate(cells):
-            if cell.isBurningOrWillBurn:
-                self.fire_did_stop = False
+        ignition = state.ignition_time
+        fire_state = state.fire_state
+        burn_time = state.burn_time
+        spread_rate = state.spread_rate
+        survivors = state.is_fire_survivor
+        zone_idx = state.zone_idx
+        vegetation = state.vegetation
+        elevation = state.elevation
+        moisture_content = state.moisture_content
 
-            ignition_time = cell.ignitionTime
-            if cell.fireState == FireState.Burning and time - ignition_time > cell.burnTime:
-                new_fire_state_data[i] = FireState.Burnt
-                if cell.canSurviveFire and random.random() < self.fire_survival_probability:
-                    cell.isFireSurvivor = True
+        for y in range(self.grid_height):
+            for x in range(self.grid_width):
+                current_state = int(fire_state[y, x])
+                ignition_time = float(ignition[y, x])
 
-            elif cell.fireState == FireState.Unburnt and time > ignition_time:
-                new_fire_state_data[i] = FireState.Burning
-                self.burned_cells_in_zone[cell.zoneIdx] = self.burned_cells_in_zone.get(cell.zoneIdx, 0) + 1
+                if current_state == FireState.Burning or (
+                    current_state == FireState.Unburnt and ignition_time < math.inf
+                ):
+                    self.fire_did_stop = False
 
-                fire_should_spread = not self.end_of_low_intensity_fire or cell.burnIndex != BurnIndex.Low
-                if fire_should_spread:
-                    neighbors = get_grid_cell_neighbors(
-                        cells, i, self.grid_width, self.grid_height, self.neighbors_dist, cell.burnIndex
-                    )
-                    for n in neighbors:
-                        neigh_cell : Cell = cells[n]
-                        dist_ft = dist(cell.x,cell.y, neigh_cell.x,neigh_cell.y) * self.cell_size
-                        spread_rate = get_fire_spread_rate(cell, neigh_cell, self.wind, self.cell_size)
-                        ignition_delta = dist_ft / spread_rate if spread_rate != 0 else float("inf")
-                        if neigh_cell.fireState == FireState.Unburnt:
-                            current_ignition = new_ignition_data.get(n, neigh_cell.ignitionTime)
-                            new_ignition_data[n] = min(ignition_time + ignition_delta, current_ignition)
-                            new_burn_time = (new_ignition_data[n] - ignition_time) + self.min_cell_burn_time
-                            if new_burn_time < neigh_cell.burnTime:
-                                neigh_cell.burnTime = new_burn_time
-                            if spread_rate > neigh_cell.spreadRate:
-                                neigh_cell.spreadRate = spread_rate
+                if current_state == FireState.Burning and time - ignition_time > float(burn_time[y, x]):
+                    new_fire_state_data[(y, x)] = FireState.Burnt
+                    source_burn_index = burn_index_for_values(int(vegetation[y, x]), float(spread_rate[y, x]))
+                    if can_survive_fire(int(vegetation[y, x]), source_burn_index) and random.random() < self.fire_survival_probability:
+                        survivors[y, x] = True
 
-        for i, state in new_fire_state_data.items():
-            cells[i].fireState = state
-        for i, time_val in new_ignition_data.items():
-            cells[i].ignitionTime = time_val
+                elif current_state == FireState.Unburnt and time > ignition_time:
+                    new_fire_state_data[(y, x)] = FireState.Burning
+                    zone = int(zone_idx[y, x])
+                    self.burned_cells_in_zone[zone] = self.burned_cells_in_zone.get(zone, 0) + 1
+
+                    source_burn_index = burn_index_for_values(int(vegetation[y, x]), float(spread_rate[y, x]))
+                    fire_should_spread = not self.end_of_low_intensity_fire or source_burn_index != BurnIndex.Low
+                    if not fire_should_spread:
+                        continue
+
+                    for nx, ny in self._iter_burnable_neighbors(state, x, y, source_burn_index):
+                        target_state = int(fire_state[ny, nx])
+                        target_spread_rate = get_fire_spread_rate_from_arrays(
+                            source_x=x,
+                            source_y=y,
+                            target_x=nx,
+                            target_y=ny,
+                            source_elevation=float(elevation[y, x]),
+                            target_elevation=float(elevation[ny, nx]),
+                            target_vegetation=int(vegetation[ny, nx]),
+                            target_moisture_content=float(moisture_content[ny, nx]),
+                            wind=self.wind,
+                            cell_size=self.cell_size,
+                        )
+                        ignition_delta = (
+                            math.dist((x, y), (nx, ny)) * self.cell_size / target_spread_rate
+                            if target_spread_rate != 0
+                            else float("inf")
+                        )
+
+                        if target_state == FireState.Unburnt:
+                            current_ignition = new_ignition_data.get((ny, nx), float(ignition[ny, nx]))
+                            new_ignition = min(ignition_time + ignition_delta, current_ignition)
+                            new_ignition_data[(ny, nx)] = new_ignition
+
+                            new_burn_time = (new_ignition - ignition_time) + self.min_cell_burn_time
+                            if new_burn_time < float(burn_time[ny, nx]):
+                                burn_time[ny, nx] = new_burn_time
+                            if target_spread_rate > float(spread_rate[ny, nx]):
+                                spread_rate[ny, nx] = target_spread_rate
+
+        for (y, x), state_value in new_fire_state_data.items():
+            fire_state[y, x] = state_value
+        for (y, x), time_value in new_ignition_data.items():
+            ignition[y, x] = time_value

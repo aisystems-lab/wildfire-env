@@ -102,16 +102,9 @@ class CustomRewardWrapper(RewardWrapper):
     def _capture_state(self) -> Dict[str, Any]:
         """Capture current environment state for reward computation."""
         base_env = self.env.unwrapped
-        cells = getattr(base_env, 'cells', [])
-        
-        cells_burning = 0
-        cells_burnt = 0
-        for cell in cells:
-            fire_state = getattr(cell, 'fireState', FireState.Unburnt)
-            if fire_state == FireState.Burning:
-                cells_burning += 1
-            elif fire_state == FireState.Burnt:
-                cells_burnt += 1
+        cell_state = base_env.cell_state
+        cells_burning = int(np.count_nonzero(cell_state.fire_state == FireState.Burning))
+        cells_burnt = int(np.count_nonzero(cell_state.fire_state == FireState.Burnt))
         
         state_dict = getattr(base_env, 'state', {})
         helicopter_coord = state_dict.get('helicopter_coord', np.array([0, 0]))

@@ -1,15 +1,14 @@
-from PIL import Image
-import numpy as np
-from typing import Callable, List, Optional, Tuple
-import requests
 from io import BytesIO
-from typing import List, Optional, Dict, Any
-from typing import List
-import numpy as np
-from ..environment.enums import BurnIndex,FireState
-from .. import config
-from ..environment.cell import Cell
 import os
+from typing import Any, Callable, Dict, List, Optional, Tuple
+
+import numpy as np
+import requests
+from PIL import Image
+
+from ..environment.enums import FireState
+from .. import config
+from ..environment.array_state import ArrayFireState
 
 def populate_grid(width: int, height: int, image: List[List[float]], interpolate: bool = False) -> List[float]:
     arr = []
@@ -188,52 +187,50 @@ def get_land_cover_zone_index(config: dict, landcoverImage) -> Optional[np.ndarr
 def get_grid_index_for_location(grid_x: int, grid_y: int, width: int) -> int:
     return grid_x + grid_y * width
 
-def ignition_times(cells, w, h):
-    raw = np.array([getattr(c, "ignitionTime", np.inf) for c in cells], dtype=np.float32)
-    np.clip(raw, None, 1e6, out=raw)
-    return raw.reshape(h, w)
+def create_array_fire_state(env_id: int, zones) -> ArrayFireState:
+    landcover_image_name = f"landcover_{env_id + 1}.png"
+    elevation_image_name = f"heightmap_{env_id + 1}.png"
+    zone_index = get_land_cover_zone_index(config, landcover_image_name)
+    elevation = get_elevation_data(config, elevation_image_name)
 
-def perform_helitack(cells : List[Cell],array_x: int, array_y: int) -> int:
+    if zone_index is None:
+        zone_index = np.zeros(config.gridWidth * config.gridHeight, dtype=np.int16)
 
-    start_grid_x = array_x
-    start_grid_y = array_y
-    gridWidth = getattr(config, "gridWidth", 50)
-    gridHeight = getattr(config, "gridHeight", 50)
+    return ArrayFireState.from_grid_inputs(
+        width=config.gridWidth,
+        height=config.gridHeight,
+        zones=zones,
+        zone_index_flat=zone_index,
+        elevation_flat=elevation,
+        fill_terrain_edges=config.fillTerrainEdges,
+    )
+
+
+def perform_helitack_array(state: ArrayFireState, array_x: int, array_y: int) -> int:
+    grid_width = state.width
+    grid_height = state.height
     if (
-        start_grid_x < 0 or start_grid_x >= gridWidth or
-        start_grid_y < 0 or start_grid_y >= gridHeight
+        array_x < 0 or array_x >= grid_width or
+        array_y < 0 or array_y >= grid_height
     ):
-        print(f"Invalid helitack coordinates: ({start_grid_x}, {start_grid_y})")
         return 0
 
-    cell_index = get_grid_index_for_location(start_grid_x, start_grid_y, gridWidth)
-    if cell_index >= len(cells):
-        print(f"Cell not found at index {cell_index}")
-        return 0
-
-    cell = cells[cell_index]
     radius = round(getattr(config, "helitackDropRadius", 50) / getattr(config, "cellSize", 50))
     quenched_cells = 0
 
-    for x in range(cell.x - radius, cell.x + radius):
-        for y in range(cell.y - radius, cell.y + radius + 1):
-            if (x - cell.x) ** 2 + (y - cell.y) ** 2 <= radius ** 2:
-                next_cell_x = cell.x - (x - cell.x)
-                next_cell_y = cell.y - (y - cell.y)
+    for x in range(array_x - radius, array_x + radius):
+        for y in range(array_y - radius, array_y + radius + 1):
+            if (x - array_x) ** 2 + (y - array_y) ** 2 <= radius ** 2:
+                next_cell_x = array_x - (x - array_x)
+                next_cell_y = array_y - (y - array_y)
 
-                if (
-                    0 <= next_cell_x < gridWidth and
-                    0 <= next_cell_y < gridHeight
-                ):
-                    target_index = get_grid_index_for_location(next_cell_x, next_cell_y, gridWidth)
-                    if target_index < len(cells):
-                        target_cell = cells[target_index]
-                        target_cell.helitackDropCount += 1
-                        target_cell.ignitionTime = float("inf")
+                if 0 <= next_cell_x < grid_width and 0 <= next_cell_y < grid_height:
+                    state.helitack_drops[next_cell_y, next_cell_x] += 1
+                    state.ignition_time[next_cell_y, next_cell_x] = np.inf
 
-                        if target_cell.fireState == FireState.Burning:
-                            target_cell.fireState = FireState.Unburnt
-                            quenched_cells += 1
+                    if state.fire_state[next_cell_y, next_cell_x] == FireState.Burning:
+                        state.fire_state[next_cell_y, next_cell_x] = FireState.Unburnt
+                        quenched_cells += 1
 
     return quenched_cells
 
@@ -252,31 +249,3 @@ def is_helicopter_on_fire(fire_status_list: np.ndarray, array_x: int, array_y: i
     # fire_state = fire_status // 3  
     # return fire_state == FireState.Burning
     return np.isclose(fire_status, normalized_burning, atol=1e-5)
-
-
-def populateCellsData(env_id,zones):
-        cells = []
-        landcover_image_name = f"landcover_{env_id+1}.png"
-        elevation_image_name = f"heightmap_{env_id+1}.png"
-        zoneIndex = get_land_cover_zone_index(config,landcover_image_name)
-        elevation = get_elevation_data(config,elevation_image_name)
-        nonBurnableZones = [12,14,16,17,18]
-        for y in range(config.gridHeight):
-            for x in range(config.gridWidth):
-                index = get_grid_index_for_location(x, y, config.gridWidth)
-                zi = zoneIndex[index] if zoneIndex is not None else 0
-                is_edge = (
-                    config.fillTerrainEdges and
-                    (x == 0 or x == config.gridWidth - 1 or y == 0 or y == config.gridHeight - 1)
-                )
-
-                cell_options = {
-                    "x": x,
-                    "y": y,
-                    "zone": zones[zi],
-                    "zoneIdx": zi,
-                    "baseElevation": 0 if is_edge else (elevation[index] if elevation else None),
-                    "isRiver": True if zi in nonBurnableZones else False
-                }
-                cells.append(Cell(**cell_options))
-        return cells
