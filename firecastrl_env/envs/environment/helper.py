@@ -135,8 +135,8 @@ def get_elevation_data(
     grid_height = getattr(config,'gridHeight', 50)
 
     def height_fn(rgba: Tuple[int, int, int, int]) -> float:
-        high_byte = rgba[0]
-        low_byte = rgba[1]
+        high_byte = int(rgba[0])
+        low_byte = int(rgba[1])
         value16 = (high_byte << 8) | low_byte
         h_norm = value16 / 65535
         return h_norm * heightmap_max

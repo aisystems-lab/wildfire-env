@@ -155,6 +155,26 @@ env = gym.make("firecastrl/Wildfire-env0", render_mode="human")
 ```
 Opens a Pygame window with real-time visualization at 60 FPS.
 
+### 3D Browser Mode
+```python
+env = gym.make("firecastrl/Wildfire-env0", render_mode="3d")
+env.reset(seed=42)
+env.render()
+```
+Launches the packaged standalone Tactics browser viewer and streams terrain and fire state directly from that exact `WildfireEnv` instance into the 3D page. The viewer is served from packaged static assets, so Node is only needed to build the web bundle before publishing the package.
+
+You can also override the viewer host and port when integrating into another app:
+
+```python
+env = gym.make(
+    "firecastrl/Wildfire-env0",
+    render_mode="3d",
+    viewer_host="127.0.0.1",
+    viewer_port=8765,
+    auto_open_3d_viewer=True,
+)
+```
+
 ### RGB Array Mode (For Recording)
 ```python
 env = gym.make("firecastrl/Wildfire-env0", render_mode="rgb_array")

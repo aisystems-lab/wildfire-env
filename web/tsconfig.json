@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "outDir": "./dist/",
+    "sourceMap": true,
+    "noImplicitAny": true,
+    "module": "commonjs",
+    "esModuleInterop": true,
+    "target": "es5",
+    "allowJs": true,
+    "allowSyntheticDefaultImports": true,
+    "useDefineForClassFields": true,
+    "resolveJsonModule": true,
+    "experimentalDecorators": true,
+    "strictNullChecks": true,
+    "types": ["jest","node"],
+    "jsx": "react",
+    "lib": [
+      "dom",
+      "es5",
+      "es2017"
+    ]
+  },
+  "include": [
+    "./src/**/*",
+    "./setupTests.ts"
+  ]
+}

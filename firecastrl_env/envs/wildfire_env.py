@@ -1,4 +1,6 @@
+import pathlib
 import warnings
+import webbrowser
 from typing import Any, Dict, Optional, Tuple
 
 import gymnasium as gym
@@ -12,17 +14,25 @@ from .environment.vector import Vector2
 from .environment.wind import Wind
 from .environment.zone import Zone
 from .fire_engine.fire_engine import FireEngine
+from ..viewer import ViewerServer
 
 warnings.filterwarnings("ignore", category=UserWarning, module="pygame.pkgdata")
 
 
 class WildfireEnv(gym.Env):
     metadata = {
-        "render_modes": ["human", "rgb_array"],
+        "render_modes": ["human", "rgb_array", "3d"],
         "render_fps": 60,
     }
 
-    def __init__(self, env_id: int = 0, render_mode: Optional[str] = None):
+    def __init__(
+        self,
+        env_id: int = 0,
+        render_mode: Optional[str] = None,
+        viewer_host: str = "127.0.0.1",
+        viewer_port: int = 8765,
+        auto_open_3d_viewer: bool = True,
+    ):
         super().__init__()
 
         self.env_id = env_id
@@ -52,6 +62,23 @@ class WildfireEnv(gym.Env):
 
         self._position_channels = self._build_position_channels()
         self._reset_state_variables()
+
+        self._spark_grid_coord = (
+            int((60000 - 1) // self.cell_size),
+            int((40000 - 1) // self.cell_size),
+        )
+        self._viewer_host = viewer_host
+        self._viewer_port = viewer_port
+        self._auto_open_3d_viewer = auto_open_3d_viewer
+        self._viewer_server = ViewerServer(
+            static_dir=self._get_viewer_static_dir(),
+            host=self._viewer_host,
+            port=self._viewer_port,
+        )
+        self._opened_3d_viewer = False
+
+    def _grid_to_screen_coords(self, grid_x: int, grid_y: int, scale: int = 4) -> Tuple[int, int]:
+        return int(grid_x * scale + 2), int(grid_y * scale + 2)
 
     def _build_position_channels(self) -> np.ndarray:
         x_denom = max(1, self.gridWidth - 1)
@@ -134,6 +161,69 @@ class WildfireEnv(gym.Env):
         self.state["cells"] = observation["cells"]
         return observation
 
+    def _get_viewer_static_dir(self):
+        return pathlib.Path(__file__).resolve().parents[1] / "web_dist"
+
+    def _build_viewer_terrain_init(self) -> Dict[str, Any]:
+        spark_x, spark_y = self._spark_grid_coord
+        return {
+            "type": "terrain_init",
+            "grid_width": int(self.gridWidth),
+            "grid_height": int(self.gridHeight),
+            "model_width": float(config.modelWidth),
+            "model_height": float(config.modelHeight),
+            "cell_size": float(self.cell_size),
+            "heightmap_max_elevation": float(config.heightmapMaxElevation),
+            "spark_coord": [spark_x, spark_y],
+            "vegetation": self.cell_state.vegetation.astype(int).tolist(),
+            "elevation": self.cell_state.base_elevation.astype(float).tolist(),
+            "is_river": self.cell_state.is_river.astype(int).tolist(),
+        }
+
+    def _build_viewer_snapshot(
+        self,
+        *,
+        cells_burning: Optional[int] = None,
+        cells_burnt: Optional[int] = None,
+        terminated: bool = False,
+        truncated: bool = False,
+    ) -> Dict[str, Any]:
+        if cells_burning is None or cells_burnt is None:
+            cells_burning, cells_burnt = self._get_current_fire_stats()
+
+        spark_x, spark_y = self._spark_grid_coord
+        return {
+            "type": "snapshot",
+            "episode": int(getattr(self, "episode_count", 0)),
+            "step_count": int(self.step_count),
+            "simulation_time": float(self.simulation_time),
+            "terminated": bool(terminated),
+            "truncated": bool(truncated),
+            "cells_burning": int(cells_burning),
+            "cells_burnt": int(cells_burnt),
+            "helicopter_coord": self.state["helicopter_coord"].astype(int).tolist(),
+            "spark_coord": [spark_x, spark_y],
+            "fire_state": self.cell_state.fire_state.astype(int).tolist(),
+            "helitack_drops": self.cell_state.helitack_drops.astype(int).tolist(),
+        }
+
+    def _publish_viewer_state(
+        self,
+        *,
+        terminated: bool = False,
+        truncated: bool = False,
+        publish_terrain: bool = False,
+    ) -> None:
+        if self.render_mode != "3d":
+            return
+
+        self._viewer_server.start()
+        if publish_terrain:
+            self._viewer_server.publish_terrain(self._build_viewer_terrain_init())
+        self._viewer_server.publish_snapshot(
+            self._build_viewer_snapshot(terminated=terminated, truncated=truncated)
+        )
+
     def reset(
         self,
         *,
@@ -151,6 +241,7 @@ class WildfireEnv(gym.Env):
 
         self.engine = FireEngine(Wind(0.0, 0.0), config)
         observation = self._build_observation(0)
+        self._publish_viewer_state(publish_terrain=True)
         return observation, {}
 
     def step(self, action: int) -> Tuple[Dict[str, np.ndarray], float, bool, bool, Dict[str, Any]]:
@@ -171,6 +262,7 @@ class WildfireEnv(gym.Env):
             "cells_burnt": cells_burnt,
             "simulation_time": self.simulation_time,
         }
+        self._publish_viewer_state(terminated=terminated, truncated=truncated)
         return observation, float(reward), terminated, truncated, info
 
     def calculate_reward(self, curr_burning: int, extinguished_by_helitack: int) -> float:
@@ -237,6 +329,18 @@ class WildfireEnv(gym.Env):
             return self._render_human()
         if self.render_mode == "rgb_array":
             return self._render_rgb_array()
+        if self.render_mode == "3d":
+            return self._render_3d()
+        return None
+
+    def _render_3d(self):
+        if self.render_mode != "3d":
+            return None
+
+        self._viewer_server.start()
+        if self._auto_open_3d_viewer and not self._opened_3d_viewer:
+            webbrowser.open(self._viewer_server.viewer_url)
+            self._opened_3d_viewer = True
         return None
 
     def _build_render_base(self) -> np.ndarray:
@@ -312,11 +416,15 @@ class WildfireEnv(gym.Env):
             age = self.step_count - attack_step
             alpha = max(0.2, 1.0 - age / 20.0)
             blue_intensity = int(alpha * 100)
-            pygame.draw.circle(self._renderer["screen"], (0, 0, blue_intensity), (hx_attack * 4 + 2, hy_attack * 4 + 2), 8)
+            pygame.draw.circle(
+                self._renderer["screen"],
+                (0, 0, blue_intensity),
+                self._grid_to_screen_coords(hx_attack, hy_attack),
+                8,
+            )
 
         hx, hy = (int(value) for value in self.state["helicopter_coord"])
-        heli_screen_x = hx * 4 + 2
-        heli_screen_y = hy * 4 + 2
+        heli_screen_x, heli_screen_y = self._grid_to_screen_coords(hx, hy)
         heli_color = (255, 255, 0)
         heli_outline = (0, 0, 0)
 
@@ -337,6 +445,21 @@ class WildfireEnv(gym.Env):
             (0, 0, 0),
         )
         self._renderer["screen"].blit(text, (10, 10))
+
+        corner_labels = [
+            ((0, 0), (10, 36)),
+            ((self.gridWidth - 1, 0), (self.window_width - 150, 36)),
+            ((0, self.gridHeight - 1), (10, self.window_height - 28)),
+            ((self.gridWidth - 1, self.gridHeight - 1), (self.window_width - 190, self.window_height - 28)),
+        ]
+        for (grid_x, grid_y), position in corner_labels:
+            label = self._renderer["font"].render(
+                f"[{grid_x}, {grid_y}]",
+                True,
+                (255, 255, 255),
+                (0, 0, 0),
+            )
+            self._renderer["screen"].blit(label, position)
         pygame.display.flip()
         self._renderer["clock"].tick(self.metadata["render_fps"])
         return None
@@ -347,8 +470,7 @@ class WildfireEnv(gym.Env):
         for hx_attack, hy_attack, attack_step in self.helitack_history:
             age = self.step_count - attack_step
             blue_intensity = int(100 * max(0.2, 1.0 - age / 20.0))
-            attack_center_x = hx_attack * 4 + 2
-            attack_center_y = hy_attack * 4 + 2
+            attack_center_x, attack_center_y = self._grid_to_screen_coords(hx_attack, hy_attack)
             for dx in range(-8, 9):
                 for dy in range(-8, 9):
                     if dx * dx + dy * dy <= 64:
@@ -358,8 +480,7 @@ class WildfireEnv(gym.Env):
                             rgb_array_scaled[py, px] = [0, 0, blue_intensity]
 
         hx, hy = (int(value) for value in self.state["helicopter_coord"])
-        heli_center_x = hx * 4 + 2
-        heli_center_y = hy * 4 + 2
+        heli_center_x, heli_center_y = self._grid_to_screen_coords(hx, hy)
         yellow = [255, 255, 0]
         black = [0, 0, 0]
 
@@ -401,3 +522,6 @@ class WildfireEnv(gym.Env):
         self.simulation_running = False
         self.engine = None
         self.state = None
+        if self._viewer_server is not None:
+            self._viewer_server.stop()
+        self._opened_3d_viewer = False
