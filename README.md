@@ -46,17 +46,26 @@ Research paper DOI: https://doi.org/10.48550/arXiv.2601.14238
 ### From TestPyPI (for testing)
 
 ```bash
-pip install --index-url https://test.pypi.org/simple/ \
+uv tool run --with pip pip install --index-url https://test.pypi.org/simple/ \
     --extra-index-url https://pypi.org/simple/ \
     firecastrl-env
 ```
 
-### From Source
+### From Source with `uv`
 
 ```bash
 git clone https://github.com/aisystems-lab/firecast-rl.git
 cd firecast-rl
-pip install -e .
+uv venv --python 3.11.11
+uv sync
+```
+
+If you use `pyenv`, set the project interpreter first:
+
+```bash
+pyenv local tactix-3.11.11
+uv venv --python "$(pyenv which python)"
+uv sync
 ```
 
 ### Dependencies
@@ -64,12 +73,21 @@ pip install -e .
 - `gymnasium >= 0.29.0`
 - `numpy >= 1.23`
 - `pillow >= 9.0.0`
+- `websockets >= 11.0`
 - `pygame >= 2.5.0`
 - `requests >= 2.28.0`
+- `urllib3 < 2`
 
 ---
 
 ## Quick Start
+
+Run the bundled examples with `uv`:
+
+```bash
+uv run python scripts/random_agent_human.py
+uv run python scripts/random_agent_3d.py
+```
 
 ```python
 import gymnasium as gym

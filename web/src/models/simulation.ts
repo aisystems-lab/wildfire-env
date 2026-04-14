@@ -75,9 +75,13 @@ private socket: WebSocket | null = null;
 private shouldReconnect = true;
 
 // WebSocket Event Handlers
-constructor(presetConfig: Partial<ISimulationConfig>) {
+constructor(presetConfig: Partial<ISimulationConfig>, autoloadTerrain = true) {
     makeObservable(this);
-    this.load(presetConfig);
+    this.dataReadyPromise = Promise.resolve();
+    this.configure(presetConfig);
+    if (autoloadTerrain) {
+      this.populateCellsData();
+    }
 }
 
 private backendGridToModelFeet(gridX: number, gridY: number) {
@@ -513,12 +517,16 @@ public connectSocket() {
     });
   }
 
-  @action.bound public load(presetConfig: Partial<ISimulationConfig>) {
+  @action.bound private configure(presetConfig: Partial<ISimulationConfig>) {
     this.restart();
     // Configuration are joined together. Default values can be replaced by preset, and preset values can be replaced
     // by URL parameters.
     this.config = Object.assign(getDefaultConfig(), presetConfig, getUrlConfig());
     this.setInputParamsFromConfig();
+  }
+
+  @action.bound public load(presetConfig: Partial<ISimulationConfig>) {
+    this.configure(presetConfig);
     this.populateCellsData();
   }
 

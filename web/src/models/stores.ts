@@ -24,7 +24,10 @@ export const createStores = (): IStores => {
   //     [ 0, 1 ]
   //   ]
   // })
-  const simulation = new SimulationModel(presets[getUrlConfig().preset || getDefaultConfig().preset]);
+  const simulation = new SimulationModel(
+    presets[getUrlConfig().preset || getDefaultConfig().preset],
+    false
+  );
   (window as any).sim = simulation;
   (window as any).DroughtLevel = DroughtLevel;
   (window as any).Vegetation = Vegetation;
