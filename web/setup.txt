@@ -1,0 +1,7 @@
+This file is deprecated.
+
+Use the root-level startup flow instead:
+
+1. `cd apps/api && PYTHONPATH=src python -m inferno_api`
+2. `cd apps/simulator && PYTHONPATH=src python -m inferno_sim`
+3. `cd apps/web && npm start`

@@ -1,5 +1,4 @@
 import React, { forwardRef, useLayoutEffect, useRef } from "react";
-import { DroughtLevel } from "../../types";
 import { BurnIndex, Cell, FireState } from "../../models/cell";
 import { ISimulationConfig } from "../../config";
 import * as THREE from "three";

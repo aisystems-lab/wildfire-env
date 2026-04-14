@@ -2,6 +2,8 @@
 
 A **Gymnasium-compatible** wildfire simulation environment with physics-informed fire spread dynamics and helicopter-based firefighting. Designed for reinforcement learning research in wildfire management and suppression strategies.
 
+Research paper DOI: https://doi.org/10.48550/arXiv.2601.14238
+
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![Gymnasium](https://img.shields.io/badge/gymnasium-0.29+-green.svg)](https://gymnasium.farama.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -384,6 +386,8 @@ firecastrl_env/
 
 If you use FirecastRL in your research, please cite:
 
+Paper DOI: https://doi.org/10.48550/arXiv.2601.14238
+
 ```bibtex
 @software{firecastrl2025,
   title={Spatiotemporal Wildfire Prediction and Reinforcement Learning for Helitack Suppression},
@@ -415,7 +419,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Contact
 
+**Shaurya Mathur** - shauryamathur2001@gmail.com
 **Shreyas Bellary Manjunath** - sbellary@buffalo.edu  
-**Shaurya Mathur** - smathur4@buffalo.edu
 
 **Project Link:** https://github.com/aisystems-lab/firecast-rl

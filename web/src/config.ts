@@ -2,13 +2,6 @@ import { ZoneOptions } from "./models/zone";
 import { DroughtLevel, Vegetation, TerrainType, VegetationType } from "./types";
 import { GENERATED_ASSETS_BASE_URL } from "./env";
 
-interface TownOptions {
-  name: string;
-  x: number; // [0, 1], position relative to model width
-  y: number; // [0, 1], position relative to model height
-  terrainType?: TerrainType; // limit town marker to given terrain type
-}
-
 export interface ISimulationConfig {
   modelWidth: number; // ft
   modelHeight: number; // ft
@@ -44,7 +37,6 @@ export interface ISimulationConfig {
   // Number of zones that the model is using. Zones are used to keep properties of some area of the model.
   zonesCount?: 17 | 18;
   zones: ZoneOptions[];
-  towns: TownOptions[];
   // Visually fills edges of the terrain by setting elevation to 0.
   fillTerrainEdges: boolean;
   riverData: string | null;
@@ -209,7 +201,6 @@ export const getDefaultConfig: () => IUrlConfig = () => ({
     droughtLevel: DroughtLevel.NoDrought // 17. Water
   }
 ],
-  towns: [],
   fillTerrainEdges: true,
   riverData: `${GENERATED_ASSETS_BASE_URL}/river-texmap.png`,
   windScaleFactor: 0.2, // Note that model is very sensitive to wind.
@@ -314,4 +305,3 @@ export const getUrlConfig: () => IUrlConfig = () => {
   });
   return urlConfig as IUrlConfig;
 };
-

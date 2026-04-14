@@ -6,7 +6,6 @@ import * as THREE from "three";
 import { useStores } from "../../use-stores";
 import { FireLineMarkersContainer } from "./fire-line-marker";
 import { DEFAULT_UP, PLANE_WIDTH, planeHeight } from "./helpers";
-import { CornerLabels } from "./corner-labels";
 import { HelicopterMarker } from "./helicopter-marker";
 import { SparksContainer } from "./spark";
 import { Terrain } from "./terrain";
@@ -74,11 +73,9 @@ export const View3d = () => {
           position={[-100, 100, -100]}
         />
         <Terrain ref={terrainRef} />
-        <CornerLabels />
         <HelicopterMarker />
         <SparksContainer dragPlane={terrainRef} />
         <FireLineMarkersContainer dragPlane={terrainRef} />
-        {/* <TownMarkersContainer/> */}
       </Provider>
     </Canvas>
     /* eslint-enable react/no-unknown-property */

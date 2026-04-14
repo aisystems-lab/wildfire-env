@@ -446,20 +446,6 @@ class WildfireEnv(gym.Env):
         )
         self._renderer["screen"].blit(text, (10, 10))
 
-        corner_labels = [
-            ((0, 0), (10, 36)),
-            ((self.gridWidth - 1, 0), (self.window_width - 150, 36)),
-            ((0, self.gridHeight - 1), (10, self.window_height - 28)),
-            ((self.gridWidth - 1, self.gridHeight - 1), (self.window_width - 190, self.window_height - 28)),
-        ]
-        for (grid_x, grid_y), position in corner_labels:
-            label = self._renderer["font"].render(
-                f"[{grid_x}, {grid_y}]",
-                True,
-                (255, 255, 255),
-                (0, 0, 0),
-            )
-            self._renderer["screen"].blit(label, position)
         pygame.display.flip()
         self._renderer["clock"].tick(self.metadata["render_fps"])
         return None

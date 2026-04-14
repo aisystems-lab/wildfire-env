@@ -1,0 +1,82 @@
+//landCoverVis - 
+palette: [
+    'darkgreen',      // 1. Evergreen Needleleaf Forest
+    'forestgreen',    // 2. Evergreen Broadleaf Forest
+    'limegreen',      // 3. Deciduous Needleleaf Forest
+    'green',          // 4. Deciduous Broadleaf Forest
+    'mediumseagreen', // 5. Mixed Forest
+    'khaki',          // 6. Closed Shrublands
+    'goldenrod',      // 7. Open Shrublands
+    'olive',          // 8. Woody Savannas
+    'yellowgreen',    // 9. Savannas
+    'lightgreen',     // 10. Grasslands
+    'darkseagreen',   // 11. Permanent Wetlands
+    'tan',            // 12. Croplands
+    'gray',           // 13. Urban and Built-Up
+    'burlywood',      // 14. Cropland/Natural Vegetation Mosaic
+    'white',          // 15. Snow and Ice
+    'lightgray',      // 16. Barren or Sparsely Vegetated
+    'blue'            // 17. Water
+  ]
+
+  //EE Code
+  // SRTM Elevation and Land Cover Visualization in Google Earth Engine
+
+// SRTM Elevation Data
+var dataset = ee.Image('USGS/SRTMGL1_003');  // SRTM 30m data
+var region = ee.Geometry.Rectangle([-122.3, 37.7, -122.1, 37.8]);  // San Francisco Bay Area example
+
+// Clip elevation data
+var elevation = dataset.clip(region);
+
+// Land Cover Data - Using IGBP Classification
+var landCover = ee.ImageCollection('MODIS/006/MCD12Q1')
+                .filter(ee.Filter.date('2020-01-01', '2020-12-31'))
+                .first()
+                .select('LC_Type1')  // IGBP land cover classification
+                .clip(region);
+
+// Visualization parameters for Land Cover (IGBP Classification)
+var landCoverVis = {
+  min: 1,
+  max: 17,
+  palette: [
+    'darkgreen',      // 1. Evergreen Needleleaf Forest
+    'forestgreen',    // 2. Evergreen Broadleaf Forest
+    'limegreen',      // 3. Deciduous Needleleaf Forest
+    'green',          // 4. Deciduous Broadleaf Forest
+    'mediumseagreen', // 5. Mixed Forest
+    'khaki',          // 6. Closed Shrublands
+    'goldenrod',      // 7. Open Shrublands
+    'olive',          // 8. Woody Savannas
+    'yellowgreen',    // 9. Savannas
+    'lightgreen',     // 10. Grasslands
+    'darkseagreen',   // 11. Permanent Wetlands
+    'tan',            // 12. Croplands
+    'gray',           // 13. Urban and Built-Up
+    'burlywood',      // 14. Cropland/Natural Vegetation Mosaic
+    'white',          // 15. Snow and Ice
+    'lightgray',      // 16. Barren or Sparsely Vegetated
+    'blue'            // 17. Water
+  ]
+};
+
+// Elevation Visualization
+var elevationVis = {
+  min: 0, 
+  max: 3000, 
+  palette: ['blue', 'green', 'yellow', 'red']
+};
+
+// Add layers to the map
+Map.centerObject(region, 10);
+Map.addLayer(elevation, elevationVis, 'Elevation');
+Map.addLayer(landCover, landCoverVis, 'Land Cover');
+Map.addLayer(region, {color: 'red', fillColor: 'rgba(0,0,0,0)'}, 'Selected Region');
+
+// Print land cover information for verification
+print(landCover);
+
+//http://localhost:8080/#/tactics?lat=40.7128&lng=-74.0060&date=2025-05-02
+
+//California WIldfires - (34.07022,-118.54453),(34.11923396170252,-118.55688961914103)

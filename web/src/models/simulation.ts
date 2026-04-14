@@ -1,5 +1,5 @@
 import { action, computed, observable, makeObservable } from "mobx";
-import { IWindProps, TerrainType, Town } from "../types";
+import { IWindProps, TerrainType } from "../types";
 import {  BurnIndex, Cell, CellOptions, FireState } from "./cell";
 import { getDefaultConfig, ISimulationConfig, getUrlConfig } from "../config";
 import { Vector2 } from "three";
@@ -7,7 +7,6 @@ import { getElevationData, getLandCoverZoneIndex, getRiverData, getUnburntIsland
 import { Zone } from "./zone";
 import { FireEngine } from "./engine/fire-engine";
 import { getGridIndexForLocation, forEachPointBetween, dist } from "./utils/grid-utils";
-import { log } from "console";
 import { WS_URL } from "../env";
 
 interface ICoords {
@@ -50,7 +49,6 @@ export class SimulationModel {
   @observable public wind: IWindProps;
   @observable public sparks: Vector2[] = [];
   @observable public fireLineMarkers: Vector2[] = [];
-  @observable public townMarkers: Town[] = [];
   @observable public zones: Zone[] = [];
   @observable public simulationStarted = false;
   @observable public simulationRunning = false;
@@ -577,7 +575,6 @@ public connectSocket() {
       }
       this.updateCellsElevationFlag();
       this.updateCellsStateFlag();
-      // this.updateTownMarkers();
       this.dataReady = true;
     });
     
@@ -810,18 +807,6 @@ private isHelicopterOnFire(fireStatusMap: number[][], array_x: number, array_y: 
 
   @action.bound public updateCellsStateFlag() {
     this.cellsStateFlag += 1;
-  }
-
-  @action.bound public updateTownMarkers() {
-    this.townMarkers.length = 0;
-    this.config.towns.forEach(town => {
-      const x = town.x * this.config.modelWidth;
-      const y = town.y * this.config.modelHeight;
-      const cell = this.cellAt(x, y);
-      if (town.terrainType === undefined || town.terrainType === cell.zone.terrainType) {
-        this.townMarkers.push({ name: town.name, position: new Vector2(x, y) });
-      }
-    });
   }
 
   @action.bound public addSpark(x: number, y: number) {
