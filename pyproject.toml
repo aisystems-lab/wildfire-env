@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "firecastrl-env"
-version = "0.1.2"
+version = "1.0.0"
 description = "Physics informed Wildfire environment compatible with Gymnasium"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -34,5 +34,5 @@ include = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/aisystems-lab/firecast-rl"
-Repository = "https://github.com/aisystems-lab/firecast-rl"
+Homepage = "https://github.com/aisystems-lab/wildfire-env"
+Repository = "https://github.com/aisystems-lab/wildfire-env"

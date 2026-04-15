@@ -1,36 +1,38 @@
 {
-  "name": "wildfire-model",
-  "version": "1.2.1",
-  "description": "Standalone Tactics 3D viewer for FirecastRL",
-  "main": "index.js",
+  "name": "wildfire-env-3d-viewer",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Packaged 3D viewer for the FirecastRL wildfire environment",
   "scripts": {
     "start": "webpack serve --no-https",
-    "build": "npm-run-all clean build:webpack",
+    "build": "npm run clean && npm run build:webpack",
     "build:webpack": "webpack --mode production --devtool false",
     "clean": "rimraf ../firecastrl_env/web_dist"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/concord-consortium/wildfire-model.git"
+    "url": "git+https://github.com/aisystems-lab/wildfire-env.git"
   },
-  "author": "Concord Consortium",
+  "author": "AI Systems Lab",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/concord-consortium/wildfire-model/issues"
+    "url": "https://github.com/aisystems-lab/wildfire-env/issues"
   },
-  "homepage": "https://github.com/concord-consortium/wildfire-model#readme",
+  "homepage": "https://github.com/aisystems-lab/wildfire-env/tree/main/web#readme",
   "devDependencies": {
+    "@svgr/webpack": "^8.0.1",
     "@types/node": "^22.15.3",
     "@types/react": "^18.2.8",
     "@types/react-dom": "^18.2.4",
     "@types/three": "^0.160.0",
     "autoprefixer": "^10.4.14",
+    "copy-webpack-plugin": "^11.0.0",
     "css-loader": "^6.8.1",
     "html-webpack-plugin": "^5.5.1",
     "mini-css-extract-plugin": "^2.7.6",
-    "npm-run-all": "^4.1.5",
     "postcss-loader": "^7.3.2",
     "rimraf": "^5.0.1",
+    "sass": "^1.62.1",
     "sass-loader": "^16.0.5",
     "style-loader": "^3.3.3",
     "ts-loader": "^9.4.3",
@@ -45,15 +47,10 @@
     "@mui/material": "^5.13.3",
     "@react-three/drei": "^9.72.2",
     "@react-three/fiber": "^8.13.0",
-    "@svgr/webpack": "^8.0.1",
-    "copy-webpack-plugin": "^11.0.0",
     "mobx": "^6.9.0",
     "mobx-react": "^7.6.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "sass": "^1.62.1",
-    "screenfull": "^6.0.2",
-    "three": "^0.160.0",
-    "wait-on": "^7.0.1"
+    "three": "^0.160.0"
   }
 }
