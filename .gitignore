@@ -1,1 +1,5 @@
 .DS_Store
+/web/src/public/terrain
+/web/src/public/data
+/firecastrl_env/web_dist
+/scripts/__pycache__

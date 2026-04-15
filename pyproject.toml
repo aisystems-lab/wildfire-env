@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "firecastrl-env"
-version = "0.1.2"
+version = "1.0.0"
 description = "Physics informed Wildfire environment compatible with Gymnasium"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -17,6 +17,7 @@ dependencies = [
   "gymnasium>=0.29.0",
   "numpy>=1.23",
   "pillow>=9.0.0",
+  "websockets>=11.0",
   "requests>=2.28.0",
   "pygame>=2.5.0",
   "urllib3<2"
@@ -28,9 +29,10 @@ packages = ["firecastrl_env"]
 [tool.hatch.build]
 include = [
   "+firecastrl_env/**/*.py",
+  "+firecastrl_env/web_dist/**/*",
   "+firecastrl_env/envs/training_environments/*.png"
 ]
 
 [project.urls]
-Homepage = "https://github.com/aisystems-lab/firecast-rl"
-Repository = "https://github.com/aisystems-lab/firecast-rl"
+Homepage = "https://github.com/aisystems-lab/wildfire-env"
+Repository = "https://github.com/aisystems-lab/wildfire-env"

@@ -1,8 +1,12 @@
-# FirecastRL: Wildfire Suppression Environment 
+# FirecastRL: Wildfire Suppression Environment
 
 A **Gymnasium-compatible** wildfire simulation environment with physics-informed fire spread dynamics and helicopter-based firefighting. Designed for reinforcement learning research in wildfire management and suppression strategies.
 
-[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+The controllable agent is a **helitack firefighting helicopter**. Its job is to move over the terrain and drop fire suppressant/water on burning regions to slow or extinguish the fire. In RL terms, the agent should be trained to contain the wildfire as quickly as possible while minimizing total burned area and using suppressant actions effectively.
+
+By default, the wildfire ignites near the center of the map and expands outward over time according to the terrain, landcover, and fire spread dynamics.
+
+[![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/)
 [![Gymnasium](https://img.shields.io/badge/gymnasium-0.29+-green.svg)](https://gymnasium.farama.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -23,10 +27,10 @@ A **Gymnasium-compatible** wildfire simulation environment with physics-informed
 ## Environment Screenshots
 
 ### Early Fire Spread
-![Early Fire Spread](https://github.com/aisystems-lab/wildfire-env/blob/434305ce1b992c2cfd5f8c7818e5d475a1fb8642/docs/screenshot_early.png)
+![Early Fire Spread](docs/screenshot_early.png)
 
 ### Active Firefighting Operations
-![Active Firefighting](https://github.com/aisystems-lab/wildfire-env/blob/434305ce1b992c2cfd5f8c7818e5d475a1fb8642/docs/screenshot_active.png)
+![Active Firefighting](docs/screenshot_active.png)
 
 **Legend:**
 - **Dark Blue** = Water/non-burnable areas
@@ -41,33 +45,62 @@ A **Gymnasium-compatible** wildfire simulation environment with physics-informed
 
 ## Installation
 
+### Prerequisites
+
+- Python `3.11.11` recommended
+- `uv` for Python environment and dependency management
+- `pyenv` optional, if you manage Python versions that way
+- Node.js only if you modify the 3D viewer in `web/`
+
 ### From TestPyPI (for testing)
 
 ```bash
-pip install --index-url https://test.pypi.org/simple/ \
+uv tool run --with pip pip install --index-url https://test.pypi.org/simple/ \
     --extra-index-url https://pypi.org/simple/ \
     firecastrl-env
 ```
 
-### From Source
+### From Source with `uv`
 
 ```bash
-git clone https://github.com/aisystems-lab/firecast-rl.git
-cd firecast-rl
-pip install -e .
+git clone https://github.com/aisystems-lab/wildfire-env.git
+cd wildfire-env
+uv venv --python 3.11.11
+uv sync
 ```
 
-### Dependencies
+If you use `pyenv`, set the project interpreter first:
 
-- `gymnasium >= 0.29.0`
-- `numpy >= 1.23`
-- `pillow >= 9.0.0`
-- `pygame >= 2.5.0`
-- `requests >= 2.28.0`
+```bash
+pyenv local tactix-3.11.11
+uv venv --python "$(pyenv which python)"
+uv sync
+```
+
+This installs the package from source in the project virtual environment and includes all runtime dependencies declared in `pyproject.toml`.
+
+### Web Viewer Development
+
+You do **not** need Node.js to use `render_mode="3d"` with the packaged viewer.
+
+Only rebuild the web bundle if you change files under `web/`:
+
+```bash
+cd web
+npm install
+npm run build
+```
 
 ---
 
 ## Quick Start
+
+Run the bundled examples with `uv`:
+
+```bash
+uv run python scripts/random_agent_human.py
+uv run python scripts/random_agent_3d.py
+```
 
 ```python
 import gymnasium as gym
@@ -136,7 +169,7 @@ The default reward encourages fire suppression:
 ### Episode Termination
 
 - **Terminated**: All fires extinguished (`cells_burning == 0`)
-- **Truncated**: Maximum timesteps reached (default: 500)
+- **Truncated**: Maximum timesteps reached (default: 2000)
 
 ### Info Dictionary
 
@@ -155,12 +188,52 @@ env = gym.make("firecastrl/Wildfire-env0", render_mode="human")
 ```
 Opens a Pygame window with real-time visualization at 60 FPS.
 
+### 3D Browser Mode
+```python
+env = gym.make("firecastrl/Wildfire-env0", render_mode="3d")
+env.reset(seed=42)
+env.render()
+```
+Launches the packaged standalone Tactics browser viewer and streams terrain and fire state directly from that exact `WildfireEnv` instance into the browser. The viewer is served from packaged static assets in `firecastrl_env/web_dist`.
+
+Example 3D viewer outputs:
+
+![3D Simulation View 1](docs/3d_simulation_1.png)
+
+![3D Simulation View 2](docs/3d_simulation_2.png)
+
+In the 3D viewer:
+
+- The wildfire starts near the center of the map and expands outward as the simulation progresses.
+- **Grey** regions represent concrete or city/urban areas.
+- **Blue** regions represent water bodies.
+- Other terrain colors are shades of green based on the MODIS land-cover legend, depicting different forest and vegetation types.
+
+You can also override the viewer host and port when integrating into another app:
+
+```python
+env = gym.make(
+    "firecastrl/Wildfire-env0",
+    render_mode="3d",
+    viewer_host="127.0.0.1",
+    viewer_port=8765,
+    auto_open_3d_viewer=True,
+)
+```
+
 ### RGB Array Mode (For Recording)
 ```python
 env = gym.make("firecastrl/Wildfire-env0", render_mode="rgb_array")
 rgb_frame = env.render()  # Returns numpy array (H, W, 3)
 ```
 Returns RGB arrays suitable for video recording or analysis.
+
+### Troubleshooting
+
+- If the 3D browser viewer does not open automatically, copy the local URL printed by the environment into your browser.
+- If port `8765` is already in use, pass a different `viewer_port` when creating the environment.
+- If you changed files in `web/` and the viewer looks stale, rebuild with `cd web && npm run build`.
+- If `human` rendering fails with a `pygame` import error, rerun `uv sync`.
 
 ---
 
@@ -278,6 +351,12 @@ obs, info = env.reset()
 
 ## Training with Stable-Baselines3
 
+`stable-baselines3` is not installed by default with the base environment. Install it first if you want to run the example below:
+
+```bash
+uv add stable-baselines3
+```
+
 ```python
 import gymnasium as gym
 from stable_baselines3 import PPO
@@ -321,10 +400,10 @@ Key parameters can be modified in `firecastrl_env/envs/config.py`:
 |-----------|---------|-------------|
 | `gridWidth` | 240 | Grid width (cells) |
 | `gridHeight` | 160 | Grid height (cells) |
-| `cellSize` | 250 | Cell size (meters) |
+| `cellSize` | 500 | Cell size (feet) |
 | `MAX_TIMESTEPS` | 2000 | Episode truncation limit |
 | `HELICOPTER_SPEED` | 3 | Cells moved per action |
-| `HELITACK_RADIUS` | 7 | Effective radius of water drops |
+| `helitackDropRadius` | 2640 | Effective helitack drop radius (feet) |
 
 ---
 
@@ -351,11 +430,21 @@ firecastrl_env/
 │   └── training_environments/   # Terrain data
 │       ├── landcover_1.png     # Real landcover map
 │       └── heightmap_1.png     # Real elevation data
+├── viewer/
+│   ├── __init__.py
+│   └── server.py                # Static file and websocket server for 3D mode
+├── web_dist/                    # Packaged 3D viewer assets
+│   ├── index.html
+│   └── assets/
 └── wrappers/                    # Custom Gymnasium wrappers
     ├── __init__.py
-    ├── cell_observation.py      # Detailed cell features
+    ├── full_cells_observation.py # Detailed cell features
     ├── custom_reward.py         # Custom reward functions
     └── clip_reward.py           # Reward clipping utility
+
+scripts/
+├── random_agent_human.py         # Random policy runner for Pygame mode
+└── random_agent_3d.py            # Random policy runner for 3D browser mode
 ```
 
 ---
@@ -369,9 +458,12 @@ If you use FirecastRL in your research, please cite:
   title={Spatiotemporal Wildfire Prediction and Reinforcement Learning for Helitack Suppression},
   author={Shaurya Mathur, Shreyas Bellary Manjunath, Nitin Kulkarni, Alina Vereshchaka},
   year={2025},
-  url={https://sites.google.com/view/firecastrl}
+  url={https://sites.google.com/view/firecastrl},
+  doi={10.48550/arXiv.2601.14238}
 }
 ```
+
+Paper DOI: https://doi.org/10.48550/arXiv.2601.14238
 
 ---
 
@@ -395,7 +487,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Contact
 
+**Shaurya Mathur** - shauryamathur2001@gmail.com
 **Shreyas Bellary Manjunath** - sbellary@buffalo.edu  
-**Shaurya Mathur** - smathur4@buffalo.edu
 
 **Project Link:** https://github.com/aisystems-lab/firecast-rl
