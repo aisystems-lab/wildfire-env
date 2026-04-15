@@ -17,7 +17,6 @@ export const View3d = () => {
   const terrainRef = useRef<THREE.Mesh>(null);
 
   return (
-    /* eslint-disable react/no-unknown-property */
     <Canvas flat={true}>
       <Provider stores={stores}>
         <PerspectiveCamera makeDefault={true} fov={33} position={cameraPos} up={DEFAULT_UP} />
@@ -44,6 +43,5 @@ export const View3d = () => {
         <SparksContainer dragPlane={terrainRef} />
       </Provider>
     </Canvas>
-    /* eslint-enable react/no-unknown-property */
   );
 };

@@ -36,3 +36,29 @@ include = [
 [project.urls]
 Homepage = "https://github.com/aisystems-lab/wildfire-env"
 Repository = "https://github.com/aisystems-lab/wildfire-env"
+
+[tool.ruff]
+line-length = 120
+target-version = "py39"
+
+[tool.ruff.lint]
+select = [
+  "E",   # pycodestyle errors
+  "W",   # pycodestyle warnings
+  "F",   # pyflakes (unused imports, undefined names, etc.)
+  "I",   # isort (import ordering)
+  "UP",  # pyupgrade (modernise syntax)
+  "B",   # flake8-bugbear (likely bugs)
+]
+ignore = [
+  "E501", # line too long — handled by formatter
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.15.10",
+]

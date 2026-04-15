@@ -1,6 +1,6 @@
 from .clip_reward import ClipReward
-from .full_cells_observation import CellObservationWrapper
 from .custom_reward import CustomRewardWrapper
+from .full_cells_observation import CellObservationWrapper
 
 __all__ = [
     "ClipReward",

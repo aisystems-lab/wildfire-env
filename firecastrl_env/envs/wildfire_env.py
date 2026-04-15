@@ -1,12 +1,13 @@
 import pathlib
 import warnings
 import webbrowser
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Optional
 
 import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
 
+from ..viewer import ViewerServer
 from . import config
 from .environment import helper as helper
 from .environment.enums import FireState
@@ -14,7 +15,6 @@ from .environment.vector import Vector2
 from .environment.wind import Wind
 from .environment.zone import Zone
 from .fire_engine.fire_engine import FireEngine
-from ..viewer import ViewerServer
 
 warnings.filterwarnings("ignore", category=UserWarning, module="pygame.pkgdata")
 
@@ -46,15 +46,19 @@ class WildfireEnv(gym.Env):
         self.cell_state = helper.create_array_fire_state(self.env_id, self.zones)
 
         self.action_space = spaces.Discrete(5)
-        self.observation_space = spaces.Dict({
-            "cells": spaces.Box(low=0.0, high=1e6, shape=(self.gridHeight, self.gridWidth), dtype=np.float32),
-            "helicopter_coord": spaces.Box(
-                low=np.array([0, 0]),
-                high=np.array([self.gridWidth - 1, self.gridHeight - 1]),
-                dtype=np.int32,
-            ),
-            "quenched_cells": spaces.Box(low=0.0, high=float(self.gridWidth * self.gridHeight), shape=(1,), dtype=np.float32),
-        })
+        self.observation_space = spaces.Dict(
+            {
+                "cells": spaces.Box(low=0.0, high=1e6, shape=(self.gridHeight, self.gridWidth), dtype=np.float32),
+                "helicopter_coord": spaces.Box(
+                    low=np.array([0, 0]),
+                    high=np.array([self.gridWidth - 1, self.gridHeight - 1]),
+                    dtype=np.int32,
+                ),
+                "quenched_cells": spaces.Box(
+                    low=0.0, high=float(self.gridWidth * self.gridHeight), shape=(1,), dtype=np.float32
+                ),
+            }
+        )
 
         ratio = 86400 / getattr(config, "modelDayInSeconds", 8)
         optimal_time_step = ratio * 0.000277
@@ -77,7 +81,7 @@ class WildfireEnv(gym.Env):
         )
         self._opened_3d_viewer = False
 
-    def _grid_to_screen_coords(self, grid_x: int, grid_y: int, scale: int = 4) -> Tuple[int, int]:
+    def _grid_to_screen_coords(self, grid_x: int, grid_y: int, scale: int = 4) -> tuple[int, int]:
         return int(grid_x * scale + 2), int(grid_y * scale + 2)
 
     def _build_position_channels(self) -> np.ndarray:
@@ -117,7 +121,7 @@ class WildfireEnv(gym.Env):
         arr /= cap
         return arr
 
-    def _get_current_fire_stats(self) -> Tuple[int, int]:
+    def _get_current_fire_stats(self) -> tuple[int, int]:
         cells_burning = int(np.count_nonzero(self.cell_state.fire_state == FireState.Burning))
         cells_burnt = int(np.count_nonzero(self.cell_state.fire_state == FireState.Burnt))
         return cells_burning, cells_burnt
@@ -129,7 +133,7 @@ class WildfireEnv(gym.Env):
             if self.engine.fire_did_stop:
                 self.simulation_running = False
 
-    def apply_action(self, action: int) -> Tuple[int, int, int]:
+    def apply_action(self, action: int) -> tuple[int, int, int]:
         self.step_count += 1
         self.state["last_action"] = action
         heli_x, heli_y = self.state["helicopter_coord"]
@@ -152,7 +156,7 @@ class WildfireEnv(gym.Env):
         heli_y = int(np.clip(heli_y, 0, self.gridHeight - 1))
         return heli_x, heli_y, quenched_cells
 
-    def _build_observation(self, quenched_cells: int) -> Dict[str, np.ndarray]:
+    def _build_observation(self, quenched_cells: int) -> dict[str, np.ndarray]:
         observation = {
             "cells": self._clip_ignition_grid().copy(),
             "helicopter_coord": self.state["helicopter_coord"].copy(),
@@ -164,7 +168,7 @@ class WildfireEnv(gym.Env):
     def _get_viewer_static_dir(self):
         return pathlib.Path(__file__).resolve().parents[1] / "web_dist"
 
-    def _build_viewer_terrain_init(self) -> Dict[str, Any]:
+    def _build_viewer_terrain_init(self) -> dict[str, Any]:
         spark_x, spark_y = self._spark_grid_coord
         return {
             "type": "terrain_init",
@@ -187,7 +191,7 @@ class WildfireEnv(gym.Env):
         cells_burnt: Optional[int] = None,
         terminated: bool = False,
         truncated: bool = False,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         if cells_burning is None or cells_burnt is None:
             cells_burning, cells_burnt = self._get_current_fire_stats()
 
@@ -220,16 +224,14 @@ class WildfireEnv(gym.Env):
         self._viewer_server.start()
         if publish_terrain:
             self._viewer_server.publish_terrain(self._build_viewer_terrain_init())
-        self._viewer_server.publish_snapshot(
-            self._build_viewer_snapshot(terminated=terminated, truncated=truncated)
-        )
+        self._viewer_server.publish_snapshot(self._build_viewer_snapshot(terminated=terminated, truncated=truncated))
 
     def reset(
         self,
         *,
         seed: Optional[int] = None,
-        options: Optional[Dict[str, Any]] = None,
-    ) -> Tuple[Dict[str, np.ndarray], Dict[str, Any]]:
+        options: Optional[dict[str, Any]] = None,
+    ) -> tuple[dict[str, np.ndarray], dict[str, Any]]:
         super().reset(seed=seed)
         self._reset_state_variables()
         self.episode_count = getattr(self, "episode_count", 0) + 1
@@ -244,7 +246,7 @@ class WildfireEnv(gym.Env):
         self._publish_viewer_state(publish_terrain=True)
         return observation, {}
 
-    def step(self, action: int) -> Tuple[Dict[str, np.ndarray], float, bool, bool, Dict[str, Any]]:
+    def step(self, action: int) -> tuple[dict[str, np.ndarray], float, bool, bool, dict[str, Any]]:
         heli_x, heli_y, quenched_cells = self.apply_action(action)
         self.tick(self._step_delta)
 
@@ -391,7 +393,7 @@ class WildfireEnv(gym.Env):
         try:
             import pygame
         except ImportError:
-            raise ImportError("pygame is required for rendering. Install with: pip install pygame")
+            raise ImportError("pygame is required for rendering. Install with: pip install pygame") from None
 
         if self._renderer is None:
             pygame.init()
@@ -428,14 +430,50 @@ class WildfireEnv(gym.Env):
         heli_color = (255, 255, 0)
         heli_outline = (0, 0, 0)
 
-        pygame.draw.line(self._renderer["screen"], heli_outline, (heli_screen_x - 9, heli_screen_y - 9), (heli_screen_x + 9, heli_screen_y + 9), 4)
-        pygame.draw.line(self._renderer["screen"], heli_outline, (heli_screen_x + 9, heli_screen_y - 9), (heli_screen_x - 9, heli_screen_y + 9), 4)
-        pygame.draw.line(self._renderer["screen"], heli_color, (heli_screen_x - 8, heli_screen_y - 8), (heli_screen_x + 8, heli_screen_y + 8), 2)
-        pygame.draw.line(self._renderer["screen"], heli_color, (heli_screen_x + 8, heli_screen_y - 8), (heli_screen_x - 8, heli_screen_y + 8), 2)
+        pygame.draw.line(
+            self._renderer["screen"],
+            heli_outline,
+            (heli_screen_x - 9, heli_screen_y - 9),
+            (heli_screen_x + 9, heli_screen_y + 9),
+            4,
+        )
+        pygame.draw.line(
+            self._renderer["screen"],
+            heli_outline,
+            (heli_screen_x + 9, heli_screen_y - 9),
+            (heli_screen_x - 9, heli_screen_y + 9),
+            4,
+        )
+        pygame.draw.line(
+            self._renderer["screen"],
+            heli_color,
+            (heli_screen_x - 8, heli_screen_y - 8),
+            (heli_screen_x + 8, heli_screen_y + 8),
+            2,
+        )
+        pygame.draw.line(
+            self._renderer["screen"],
+            heli_color,
+            (heli_screen_x + 8, heli_screen_y - 8),
+            (heli_screen_x - 8, heli_screen_y + 8),
+            2,
+        )
         pygame.draw.circle(self._renderer["screen"], heli_outline, (heli_screen_x, heli_screen_y), 5)
         pygame.draw.circle(self._renderer["screen"], heli_color, (heli_screen_x, heli_screen_y), 3)
-        pygame.draw.line(self._renderer["screen"], heli_outline, (heli_screen_x - 12, heli_screen_y), (heli_screen_x + 12, heli_screen_y), 3)
-        pygame.draw.line(self._renderer["screen"], (200, 200, 200), (heli_screen_x - 11, heli_screen_y), (heli_screen_x + 11, heli_screen_y), 1)
+        pygame.draw.line(
+            self._renderer["screen"],
+            heli_outline,
+            (heli_screen_x - 12, heli_screen_y),
+            (heli_screen_x + 12, heli_screen_y),
+            3,
+        )
+        pygame.draw.line(
+            self._renderer["screen"],
+            (200, 200, 200),
+            (heli_screen_x - 11, heli_screen_y),
+            (heli_screen_x + 11, heli_screen_y),
+            1,
+        )
 
         cells_burning, cells_burnt = self._get_current_fire_stats()
         text = self._renderer["font"].render(
@@ -474,9 +512,17 @@ class WildfireEnv(gym.Env):
             x1, y1 = heli_center_x + offset, heli_center_y + offset
             x2, y2 = heli_center_x + offset, heli_center_y - offset
             for thick in [-1, 0, 1]:
-                if 0 <= y1 < rgb_array_scaled.shape[0] and 0 <= x1 < rgb_array_scaled.shape[1] and 0 <= x1 + thick < rgb_array_scaled.shape[1]:
+                if (
+                    0 <= y1 < rgb_array_scaled.shape[0]
+                    and 0 <= x1 < rgb_array_scaled.shape[1]
+                    and 0 <= x1 + thick < rgb_array_scaled.shape[1]
+                ):
                     rgb_array_scaled[y1, x1 + thick] = black if abs(offset) > 6 else yellow
-                if 0 <= y2 < rgb_array_scaled.shape[0] and 0 <= x2 < rgb_array_scaled.shape[1] and 0 <= x2 + thick < rgb_array_scaled.shape[1]:
+                if (
+                    0 <= y2 < rgb_array_scaled.shape[0]
+                    and 0 <= x2 < rgb_array_scaled.shape[1]
+                    and 0 <= x2 + thick < rgb_array_scaled.shape[1]
+                ):
                     rgb_array_scaled[y2, x2 + thick] = black if abs(offset) > 6 else yellow
 
         for dx in range(-3, 4):
@@ -499,6 +545,7 @@ class WildfireEnv(gym.Env):
         if self._renderer is not None:
             try:
                 import pygame
+
                 if pygame.get_init():
                     pygame.quit()
             except Exception:

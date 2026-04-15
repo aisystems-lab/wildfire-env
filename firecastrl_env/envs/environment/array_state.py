@@ -1,11 +1,10 @@
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Sequence
 
 import numpy as np
 
 from .cell import FIRE_LINE_DEPTH, MAX_BURN_TIME, moisture_lookup_by_land_cover
 from .enums import BurnIndex, DroughtLevel, FireState, VegetationType
-
 
 NON_BURNABLE_ZONE_INDICES = {12, 14, 16, 17, 18}
 
@@ -47,10 +46,7 @@ def burn_index_for_values(vegetation: int, spread_rate: float) -> int:
 
 
 def can_survive_fire(vegetation: int, burn_index: int) -> bool:
-    return (
-        burn_index == BurnIndex.Low
-        and vegetation == VegetationType.PermanentWetlands.value
-    )
+    return burn_index == BurnIndex.Low and vegetation == VegetationType.PermanentWetlands.value
 
 
 def is_burnable_for_index(

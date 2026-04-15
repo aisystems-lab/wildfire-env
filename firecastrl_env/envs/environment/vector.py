@@ -1,5 +1,4 @@
 import math
-from typing import List, Tuple
 
 
 class Vector2:
@@ -17,7 +16,7 @@ class Vector2:
         self.y = scalar
         return self
 
-    def copy(self, v: 'Vector2'):
+    def copy(self, v: "Vector2"):
         self.x = v.x
         self.y = v.y
         return self
@@ -25,7 +24,7 @@ class Vector2:
     def clone(self):
         return Vector2(self.x, self.y)
 
-    def add(self, v: 'Vector2'):
+    def add(self, v: "Vector2"):
         self.x += v.x
         self.y += v.y
         return self
@@ -35,22 +34,22 @@ class Vector2:
         self.y += s
         return self
 
-    def addVectors(self, a: 'Vector2', b: 'Vector2'):
+    def addVectors(self, a: "Vector2", b: "Vector2"):
         self.x = a.x + b.x
         self.y = a.y + b.y
         return self
 
-    def addScaledVector(self, v: 'Vector2', s: float):
+    def addScaledVector(self, v: "Vector2", s: float):
         self.x += v.x * s
         self.y += v.y * s
         return self
 
-    def sub(self, v: 'Vector2'):
+    def sub(self, v: "Vector2"):
         self.x -= v.x
         self.y -= v.y
         return self
 
-    def subVectors(self, a: 'Vector2', b: 'Vector2'):
+    def subVectors(self, a: "Vector2", b: "Vector2"):
         self.x = a.x - b.x
         self.y = a.y - b.y
         return self
@@ -75,7 +74,7 @@ class Vector2:
         self.y = -self.y
         return self
 
-    def dot(self, v: 'Vector2') -> float:
+    def dot(self, v: "Vector2") -> float:
         return self.x * v.x + self.y * v.y
 
     def lengthSq(self) -> float:
@@ -90,10 +89,10 @@ class Vector2:
     def setLength(self, length: float):
         return self.normalize().multiplyScalar(length)
 
-    def distanceTo(self, v: 'Vector2') -> float:
+    def distanceTo(self, v: "Vector2") -> float:
         return math.sqrt(self.distanceToSquared(v))
 
-    def distanceToSquared(self, v: 'Vector2') -> float:
+    def distanceToSquared(self, v: "Vector2") -> float:
         dx = self.x - v.x
         dy = self.y - v.y
         return dx * dx + dy * dy
@@ -101,25 +100,25 @@ class Vector2:
     def angle(self) -> float:
         return math.atan2(self.y, self.x)
 
-    def angleTo(self, v: 'Vector2') -> float:
+    def angleTo(self, v: "Vector2") -> float:
         dot = self.dot(v)
         len_product = self.length() * v.length()
         if len_product == 0:
             return 0
         return math.acos(max(-1, min(1, dot / len_product)))
 
-    def equals(self, v: 'Vector2') -> bool:
+    def equals(self, v: "Vector2") -> bool:
         return self.x == v.x and self.y == v.y
 
-    def toArray(self) -> Tuple[float, float]:
+    def toArray(self) -> tuple[float, float]:
         return (self.x, self.y)
 
-    def fromArray(self, array: List[float]):
+    def fromArray(self, array: list[float]):
         self.x = array[0]
         self.y = array[1]
         return self
 
-    def rotateAround(self, center: 'Vector2', angle: float):
+    def rotateAround(self, center: "Vector2", angle: float):
         # Translate to origin
         dx = self.x - center.x
         dy = self.y - center.y

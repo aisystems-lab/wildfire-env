@@ -1,34 +1,26 @@
 import math
 import random
-from typing import Dict
-from ..environment.enums import BurnIndex, FireState
+
 from ..environment.array_state import (
     ArrayFireState,
     burn_index_for_values,
     can_survive_fire,
     is_burnable_for_index,
 )
-from .utils import for_each_point_between
-from .fire_spread_rate import get_fire_spread_rate_from_arrays
+from ..environment.enums import BurnIndex, FireState
 from ..environment.wind import Wind
+from .fire_spread_rate import get_fire_spread_rate_from_arrays
+from .utils import for_each_point_between
 
 model_day = 1440  # minutes
 
-end_of_low_intensity_fire_probability = {
-    0: 0.0,
-    1: 0.1,
-    2: 0.1,
-    3: 0.2,
-    4: 0.3,
-    5: 0.5,
-    6: 0.7,
-    7: 1.0
-}
+end_of_low_intensity_fire_probability = {0: 0.0, 1: 0.1, 2: 0.1, 3: 0.2, 4: 0.3, 5: 0.5, 6: 0.7, 7: 1.0}
+
 
 class FireEngine:
-    def __init__(self, wind : Wind, config):
+    def __init__(self, wind: Wind, config):
         # self.cells : List[Cell] = cells
-        self.wind : Wind = wind
+        self.wind: Wind = wind
         self.grid_width = config.gridWidth
         self.grid_height = config.gridHeight
         self.cell_size = config.cellSize
@@ -48,13 +40,13 @@ class FireEngine:
             for dx in range(-max_offset, max_offset + 1):
                 if dx == 0 and dy == 0:
                     continue
-                if dx * dx + dy * dy > self.neighbors_dist ** 2:
+                if dx * dx + dy * dy > self.neighbors_dist**2:
                     continue
 
                 line_points = []
 
-                def callback(x, y, _):
-                    line_points.append((x, y))
+                def callback(x, y, _, lp=line_points):
+                    lp.append((x, y))
 
                 for_each_point_between(0, 0, dx, dy, callback)
                 offsets.append((dx, dy, tuple(line_points[1:-1])))
@@ -108,8 +100,8 @@ class FireEngine:
             if random.random() <= end_of_low_intensity_fire_probability.get(new_day, 0.0):
                 self.end_of_low_intensity_fire = True
 
-        new_ignition_data: Dict[tuple[int, int], float] = {}
-        new_fire_state_data: Dict[tuple[int, int], int] = {}
+        new_ignition_data: dict[tuple[int, int], float] = {}
+        new_fire_state_data: dict[tuple[int, int], int] = {}
         self.fire_did_stop = True
 
         ignition = state.ignition_time
@@ -135,7 +127,10 @@ class FireEngine:
                 if current_state == FireState.Burning and time - ignition_time > float(burn_time[y, x]):
                     new_fire_state_data[(y, x)] = FireState.Burnt
                     source_burn_index = burn_index_for_values(int(vegetation[y, x]), float(spread_rate[y, x]))
-                    if can_survive_fire(int(vegetation[y, x]), source_burn_index) and random.random() < self.fire_survival_probability:
+                    if (
+                        can_survive_fire(int(vegetation[y, x]), source_burn_index)
+                        and random.random() < self.fire_survival_probability
+                    ):
                         survivors[y, x] = True
 
                 elif current_state == FireState.Unburnt and time > ignition_time:

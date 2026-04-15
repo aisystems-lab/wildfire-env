@@ -69,7 +69,6 @@ export const Marker: React.FC<IProps> = observer(function WrappedComponent({
 
   const eventHandlers = getEventHandlers([ draggingInteraction ]);
   return (
-    /* eslint-disable react/no-unknown-property */
     // See: https://github.com/jsx-eslint/eslint-plugin-react/issues/3423
     <sprite
       renderOrder={1}
@@ -81,6 +80,5 @@ export const Marker: React.FC<IProps> = observer(function WrappedComponent({
     >
       <spriteMaterial attach="material" map={texture} depthTest={false} />
     </sprite>
-    /* eslint-enable react/no-unknown-property */
   );
 });

@@ -1,13 +1,17 @@
 import math
 from dataclasses import dataclass
+
 import numpy as np
+
 from ..environment.enums import VegetationType
 from ..environment.vector import Vector2
 
+
 @dataclass
 class WindProps:
-    speed:float
-    direction:float
+    speed: float
+    direction: float
+
 
 @dataclass
 class Fuel:
@@ -17,31 +21,27 @@ class Fuel:
     packing_ratio: float
     mx: float
 
+
 FuelConstants = {
     # True surface fuels
     VegetationType.Grasslands: Fuel(2100, 0.294, 3.0, 0.00306, 0.15),
     VegetationType.ClosedShrublands: Fuel(1672, 0.239, 1.2, 0.01198, 0.30),
     VegetationType.OpenShrublands: Fuel(1500, 0.20, 1.0, 0.010, 0.30),
-
     # Forest litter
     VegetationType.EvergreenNeedleleaf: Fuel(1716, 0.0459, 0.10, 0.04878, 0.20),
     VegetationType.DeciduousNeedleleaf: Fuel(1650, 0.040, 0.10, 0.045, 0.20),
     VegetationType.EvergreenBroadleaf: Fuel(1500, 0.06, 0.12, 0.035, 0.25),
     VegetationType.DeciduousBroadleaf: Fuel(1400, 0.05, 0.10, 0.030, 0.25),
     VegetationType.MixedForest: Fuel((1716 + 1500) / 2, (0.0459 + 0.06) / 2, 0.11, 0.042, 0.22),
-
     # Savanna / woody grassland
     VegetationType.WoodySavannas: Fuel(1400, 0.18, 0.8, 0.008, 0.30),
     VegetationType.Savannas: Fuel(1450, 0.17, 0.7, 0.0085, 0.25),
-
     # Agricultural
     VegetationType.Croplands: Fuel(1200, 0.20, 0.50, 0.015, 0.30),
     VegetationType.CroplandMosaic: Fuel(1300, 0.18, 0.60, 0.012, 0.25),
-
     # Wet or sparsely vegetated
     VegetationType.PermanentWetlands: Fuel(800, 0.12, 0.50, 0.007, 0.50),
     VegetationType.Barren: Fuel(600, 0.01, 0.05, 0.002, 0.10),
-
     # Non-burnable
     VegetationType.UrbanBuilt: Fuel(0, 0, 0, 0, 0),
     VegetationType.SnowIce: Fuel(0, 0, 0, 0, 0),
@@ -61,16 +61,13 @@ for vegetation, fuel in FuelConstants.items():
         dtype=np.float32,
     )
 
-UNBURNABLE_VEGETATION = {
-    VegetationType.UrbanBuilt,
-    VegetationType.SnowIce,
-    VegetationType.Water
-}
+UNBURNABLE_VEGETATION = {VegetationType.UrbanBuilt, VegetationType.SnowIce, VegetationType.Water}
 UNBURNABLE_VEGETATION_VALUES = {vegetation.value for vegetation in UNBURNABLE_VEGETATION}
 
 heat_content = 8000
 total_mineral_content = 0.0555
 effective_mineral_content = 0.01
+
 
 def get_direction_factor_from_coords(
     source_x: int,
@@ -82,7 +79,7 @@ def get_direction_factor_from_coords(
 ) -> float:
     effective_wind_speed_mph = effective_wind_speed / 88.0
     z_term = 1 + 0.25 * effective_wind_speed_mph
-    e_term = math.sqrt(z_term ** 2 - 1) / z_term
+    e_term = math.sqrt(z_term**2 - 1) / z_term
 
     cell_vector = Vector2(target_x - source_x, target_y - source_y)
     relative_angle = abs(cell_vector.angle() - max_spread_direction)
@@ -136,10 +133,14 @@ def get_fire_spread_rate_from_arrays(
     )
 
     mineral_damping = 0.174 * math.pow(effective_mineral_content, -0.19)
-    reaction_intensity = optimum_reaction_velocity * float(net_fuel_load) * heat_content * moisture_damping * mineral_damping
+    reaction_intensity = (
+        optimum_reaction_velocity * float(net_fuel_load) * heat_content * moisture_damping * mineral_damping
+    )
 
-    propagating_flux = 1 / (192 + (0.2595 * float(sav))) * math.exp(
-        (0.792 + (0.681 * math.sqrt(float(sav)))) * (float(packing_ratio) + 0.1)
+    propagating_flux = (
+        1
+        / (192 + (0.2595 * float(sav)))
+        * math.exp((0.792 + (0.681 * math.sqrt(float(sav)))) * (float(packing_ratio) + 0.1))
     )
     fuel_load = float(net_fuel_load) / (1 - total_mineral_content)
     bulk_density = fuel_load / float(fuel_bed_depth)
@@ -156,7 +157,7 @@ def get_fire_spread_rate_from_arrays(
     if dx == 0 or dy == 0:
         dist_in_ft = abs(dx + dy) * cell_size
     else:
-        dist_in_ft = math.sqrt(dx ** 2 + dy ** 2) * cell_size
+        dist_in_ft = math.sqrt(dx**2 + dy**2) * cell_size
 
     elevation_diff = target_elevation - source_elevation
     slope_tan = elevation_diff / dist_in_ft if dist_in_ft != 0 else 0.0
@@ -198,4 +199,3 @@ def get_fire_spread_rate_from_arrays(
     )
 
     return rh * direction_factor
-

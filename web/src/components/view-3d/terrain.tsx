@@ -158,7 +158,6 @@ export const Terrain = observer(forwardRef<THREE.Mesh>(function WrappedComponent
   const eventHandlers = getEventHandlers(interactions);
 
   return (
-    /* eslint-disable react/no-unknown-property */
     // See: https://github.com/jsx-eslint/eslint-plugin-react/issues/3423
     <mesh
       ref={ref}
@@ -173,6 +172,5 @@ export const Terrain = observer(forwardRef<THREE.Mesh>(function WrappedComponent
       />
       <meshPhongMaterial attach="material" vertexColors={true} />
     </mesh>
-    /* eslint-enable react/no-unknown-property */
   );
 }));

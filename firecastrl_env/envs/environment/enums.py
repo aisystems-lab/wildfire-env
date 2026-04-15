@@ -1,10 +1,12 @@
 from enum import Enum
 
+
 class DroughtLevel(Enum):
     NoDrought = 0
     MildDrought = 1
     MediumDrought = 2
     SevereDrought = 3
+
 
 class VegetationType(Enum):
     EvergreenNeedleleaf = 1
@@ -39,10 +41,12 @@ class TerrainType(Enum):
     Ice = "ice"
     Water = "water"
 
+
 class FireState:
     Unburnt = 0
     Burning = 1
     Burnt = 2
+
 
 class BurnIndex:
     Low = 0
