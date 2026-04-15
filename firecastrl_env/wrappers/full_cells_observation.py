@@ -41,7 +41,7 @@ class CellObservationWrapper(ObservationWrapper):
         >>> from firecastrl_env.wrappers import CellObservationWrapper
         >>> 
         >>> # Use default properties
-        >>> env = gym.make("firecastrl_env/WildfireEnv-v0")
+        >>> env = gym.make("firecastrl/Wildfire-env0")
         >>> env = CellObservationWrapper(env)
         >>> 
         >>> # Include only specific properties
@@ -141,5 +141,4 @@ class CellObservationWrapper(ObservationWrapper):
             del new_obs["cells"]
         
         return new_obs
-
 

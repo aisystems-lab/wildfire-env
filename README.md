@@ -2,6 +2,10 @@
 
 A **Gymnasium-compatible** wildfire simulation environment with physics-informed fire spread dynamics and helicopter-based firefighting. Designed for reinforcement learning research in wildfire management and suppression strategies.
 
+The controllable agent is a **helitack firefighting helicopter**. Its job is to move over the terrain and drop fire suppressant/water on burning regions to slow or extinguish the fire. In RL terms, the agent should be trained to contain the wildfire as quickly as possible while minimizing total burned area and using suppressant actions effectively.
+
+By default, the wildfire ignites near the center of the map and expands outward over time according to the terrain, landcover, and fire spread dynamics.
+
 [![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/)
 [![Gymnasium](https://img.shields.io/badge/gymnasium-0.29+-green.svg)](https://gymnasium.farama.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -59,8 +63,8 @@ uv tool run --with pip pip install --index-url https://test.pypi.org/simple/ \
 ### From Source with `uv`
 
 ```bash
-git clone https://github.com/aisystems-lab/firecast-rl.git
-cd firecast-rl
+git clone https://github.com/aisystems-lab/wildfire-env.git
+cd wildfire-env
 uv venv --python 3.11.11
 uv sync
 ```
@@ -197,6 +201,13 @@ Example 3D viewer outputs:
 ![3D Simulation View 1](docs/3d_simulation_1.png)
 
 ![3D Simulation View 2](docs/3d_simulation_2.png)
+
+In the 3D viewer:
+
+- The wildfire starts near the center of the map and expands outward as the simulation progresses.
+- **Grey** regions represent concrete or city/urban areas.
+- **Blue** regions represent water bodies.
+- Other terrain colors are shades of green based on the MODIS land-cover legend, depicting different forest and vegetation types.
 
 You can also override the viewer host and port when integrating into another app:
 
@@ -340,6 +351,12 @@ obs, info = env.reset()
 
 ## Training with Stable-Baselines3
 
+`stable-baselines3` is not installed by default with the base environment. Install it first if you want to run the example below:
+
+```bash
+uv add stable-baselines3
+```
+
 ```python
 import gymnasium as gym
 from stable_baselines3 import PPO
@@ -413,11 +430,21 @@ firecastrl_env/
 │   └── training_environments/   # Terrain data
 │       ├── landcover_1.png     # Real landcover map
 │       └── heightmap_1.png     # Real elevation data
+├── viewer/
+│   ├── __init__.py
+│   └── server.py                # Static file and websocket server for 3D mode
+├── web_dist/                    # Packaged 3D viewer assets
+│   ├── index.html
+│   └── assets/
 └── wrappers/                    # Custom Gymnasium wrappers
     ├── __init__.py
     ├── full_cells_observation.py # Detailed cell features
     ├── custom_reward.py         # Custom reward functions
     └── clip_reward.py           # Reward clipping utility
+
+scripts/
+├── random_agent_human.py         # Random policy runner for Pygame mode
+└── random_agent_3d.py            # Random policy runner for 3D browser mode
 ```
 
 ---

@@ -70,7 +70,7 @@ class CustomRewardWrapper(RewardWrapper):
         ...     # Simple example: only reward extinguishing fires
         ...     return 10.0 * curr['quenched_cells']
         >>> 
-        >>> env = gym.make("firecastrl_env/WildfireEnv-v0")
+        >>> env = gym.make("firecastrl/Wildfire-env0")
         >>> env = CustomRewardWrapper(env, reward_fn=my_reward)
     """
 
@@ -109,6 +109,8 @@ class CustomRewardWrapper(RewardWrapper):
         state_dict = getattr(base_env, 'state', {})
         helicopter_coord = state_dict.get('helicopter_coord', np.array([0, 0]))
         quenched_cells = state_dict.get('quenched_cells', 0)
+        if isinstance(quenched_cells, np.ndarray):
+            quenched_cells = float(np.asarray(quenched_cells).reshape(-1)[0]) if quenched_cells.size else 0.0
         
         return {
             'cells_burning': cells_burning,
@@ -116,5 +118,4 @@ class CustomRewardWrapper(RewardWrapper):
             'helicopter_coord': helicopter_coord,
             'quenched_cells': float(quenched_cells if quenched_cells is not None else 0)
         }
-
 
