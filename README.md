@@ -1,10 +1,8 @@
-# FirecastRL: Wildfire Suppression Environment 
+# FirecastRL: Wildfire Suppression Environment
 
 A **Gymnasium-compatible** wildfire simulation environment with physics-informed fire spread dynamics and helicopter-based firefighting. Designed for reinforcement learning research in wildfire management and suppression strategies.
 
-Research paper DOI: https://doi.org/10.48550/arXiv.2601.14238
-
-[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/)
 [![Gymnasium](https://img.shields.io/badge/gymnasium-0.29+-green.svg)](https://gymnasium.farama.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -25,10 +23,10 @@ Research paper DOI: https://doi.org/10.48550/arXiv.2601.14238
 ## Environment Screenshots
 
 ### Early Fire Spread
-![Early Fire Spread](https://github.com/aisystems-lab/wildfire-env/blob/434305ce1b992c2cfd5f8c7818e5d475a1fb8642/docs/screenshot_early.png)
+![Early Fire Spread](docs/screenshot_early.png)
 
 ### Active Firefighting Operations
-![Active Firefighting](https://github.com/aisystems-lab/wildfire-env/blob/434305ce1b992c2cfd5f8c7818e5d475a1fb8642/docs/screenshot_active.png)
+![Active Firefighting](docs/screenshot_active.png)
 
 **Legend:**
 - **Dark Blue** = Water/non-burnable areas
@@ -42,6 +40,13 @@ Research paper DOI: https://doi.org/10.48550/arXiv.2601.14238
 ---
 
 ## Installation
+
+### Prerequisites
+
+- Python `3.11.11` recommended
+- `uv` for Python environment and dependency management
+- `pyenv` optional, if you manage Python versions that way
+- Node.js only if you modify the 3D viewer in `web/`
 
 ### From TestPyPI (for testing)
 
@@ -68,15 +73,19 @@ uv venv --python "$(pyenv which python)"
 uv sync
 ```
 
-### Dependencies
+This installs the package from source in the project virtual environment and includes all runtime dependencies declared in `pyproject.toml`.
 
-- `gymnasium >= 0.29.0`
-- `numpy >= 1.23`
-- `pillow >= 9.0.0`
-- `websockets >= 11.0`
-- `pygame >= 2.5.0`
-- `requests >= 2.28.0`
-- `urllib3 < 2`
+### Web Viewer Development
+
+You do **not** need Node.js to use `render_mode="3d"` with the packaged viewer.
+
+Only rebuild the web bundle if you change files under `web/`:
+
+```bash
+cd web
+npm install
+npm run build
+```
 
 ---
 
@@ -156,7 +165,7 @@ The default reward encourages fire suppression:
 ### Episode Termination
 
 - **Terminated**: All fires extinguished (`cells_burning == 0`)
-- **Truncated**: Maximum timesteps reached (default: 500)
+- **Truncated**: Maximum timesteps reached (default: 2000)
 
 ### Info Dictionary
 
@@ -181,7 +190,13 @@ env = gym.make("firecastrl/Wildfire-env0", render_mode="3d")
 env.reset(seed=42)
 env.render()
 ```
-Launches the packaged standalone Tactics browser viewer and streams terrain and fire state directly from that exact `WildfireEnv` instance into the 3D page. The viewer is served from packaged static assets, so Node is only needed to build the web bundle before publishing the package.
+Launches the packaged standalone Tactics browser viewer and streams terrain and fire state directly from that exact `WildfireEnv` instance into the browser. The viewer is served from packaged static assets in `firecastrl_env/web_dist`.
+
+Example 3D viewer outputs:
+
+![3D Simulation View 1](docs/3d_simulation_1.png)
+
+![3D Simulation View 2](docs/3d_simulation_2.png)
 
 You can also override the viewer host and port when integrating into another app:
 
@@ -201,6 +216,13 @@ env = gym.make("firecastrl/Wildfire-env0", render_mode="rgb_array")
 rgb_frame = env.render()  # Returns numpy array (H, W, 3)
 ```
 Returns RGB arrays suitable for video recording or analysis.
+
+### Troubleshooting
+
+- If the 3D browser viewer does not open automatically, copy the local URL printed by the environment into your browser.
+- If port `8765` is already in use, pass a different `viewer_port` when creating the environment.
+- If you changed files in `web/` and the viewer looks stale, rebuild with `cd web && npm run build`.
+- If `human` rendering fails with a `pygame` import error, rerun `uv sync`.
 
 ---
 
@@ -361,10 +383,10 @@ Key parameters can be modified in `firecastrl_env/envs/config.py`:
 |-----------|---------|-------------|
 | `gridWidth` | 240 | Grid width (cells) |
 | `gridHeight` | 160 | Grid height (cells) |
-| `cellSize` | 250 | Cell size (meters) |
+| `cellSize` | 500 | Cell size (feet) |
 | `MAX_TIMESTEPS` | 2000 | Episode truncation limit |
 | `HELICOPTER_SPEED` | 3 | Cells moved per action |
-| `HELITACK_RADIUS` | 7 | Effective radius of water drops |
+| `helitackDropRadius` | 2640 | Effective helitack drop radius (feet) |
 
 ---
 
@@ -393,7 +415,7 @@ firecastrl_env/
 │       └── heightmap_1.png     # Real elevation data
 └── wrappers/                    # Custom Gymnasium wrappers
     ├── __init__.py
-    ├── cell_observation.py      # Detailed cell features
+    ├── full_cells_observation.py # Detailed cell features
     ├── custom_reward.py         # Custom reward functions
     └── clip_reward.py           # Reward clipping utility
 ```
@@ -404,16 +426,17 @@ firecastrl_env/
 
 If you use FirecastRL in your research, please cite:
 
-Paper DOI: https://doi.org/10.48550/arXiv.2601.14238
-
 ```bibtex
 @software{firecastrl2025,
   title={Spatiotemporal Wildfire Prediction and Reinforcement Learning for Helitack Suppression},
   author={Shaurya Mathur, Shreyas Bellary Manjunath, Nitin Kulkarni, Alina Vereshchaka},
   year={2025},
-  url={https://sites.google.com/view/firecastrl}
+  url={https://sites.google.com/view/firecastrl},
+  doi={10.48550/arXiv.2601.14238}
 }
 ```
+
+Paper DOI: https://doi.org/10.48550/arXiv.2601.14238
 
 ---
 
