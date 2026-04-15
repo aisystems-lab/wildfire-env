@@ -9,7 +9,6 @@ import { observer } from "mobx-react";
 import { useStores } from "../../use-stores";
 import { getEventHandlers, InteractionHandler } from "./interaction-handler";
 import { usePlaceSparkInteraction } from "./use-place-spark-interaction";
-import { useDrawFireLineInteraction } from "./use-draw-fire-line-interaction";
 import { useShowCoordsInteraction } from "./use-show-coords-interaction";
 import { useHelitackInteraction } from "./use-helitack-interaction";
 
@@ -161,7 +160,6 @@ export const Terrain = observer(forwardRef<THREE.Mesh>(function WrappedComponent
 
   const interactions: InteractionHandler[] = [
     usePlaceSparkInteraction(),
-    useDrawFireLineInteraction(),
     useShowCoordsInteraction(),
     useHelitackInteraction()
   ];

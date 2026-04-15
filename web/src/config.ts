@@ -42,11 +42,8 @@ export interface ISimulationConfig {
   riverData: string | null;
   windScaleFactor: number;
   showModelDimensions: boolean;
-  // Time that needs to pass before next fire line can be added.
-  fireLineDelay: number;
   // Helitack has a cooldown before it can be used again
   helitackDelay: number;
-  maxFireLineLength: number; // ft
   helitackDropRadius: number; // ft
   // Renders burn index.
   showBurnIndex: boolean;
@@ -65,8 +62,6 @@ export interface ISimulationConfig {
   // River color, RGBA values (range: [0, 1]). Suggested colors:
   // [0.663,0.855,1,1], [0.337,0.69,0.957,1] or [0.067,0.529,0.882,1]
   riverColor: [number, number, number, number];
-  // Authors may want to disable the fireline and helitack features completely
-  fireLineAvailable: boolean;
   helitackAvailable: boolean;
   forestWithSuppressionAvailable: boolean;
   // If set to a number, the wind direction and strength will change during the model run.
@@ -206,9 +201,7 @@ export const getDefaultConfig: () => IUrlConfig = () => ({
   windScaleFactor: 0.2, // Note that model is very sensitive to wind.
   // Scale wind values down for now, so changes are less dramatic.
   showModelDimensions: false,
-  fireLineDelay: 1440, // a day
   helitackDelay: 240, // four hours
-  maxFireLineLength: 15000, // ft
   helitackDropRadius: 2640, // ft (5280 ft = 1 mile)
   showBurnIndex: true,
   showCoordsOnClick: false,
@@ -217,7 +210,6 @@ export const getDefaultConfig: () => IUrlConfig = () => ({
   droughtIndexLocked: false,
   severeDroughtAvailable: true,
   riverColor: [0.067, 0.529, 0.882, 1],
-  fireLineAvailable: true,
   helitackAvailable: true,
   forestWithSuppressionAvailable: true,
   changeWindOnDay: undefined,

@@ -4,7 +4,6 @@ import { Provider } from "mobx-react";
 import React, { useRef } from "react";
 import * as THREE from "three";
 import { useStores } from "../../use-stores";
-import { FireLineMarkersContainer } from "./fire-line-marker";
 import { DEFAULT_UP, PLANE_WIDTH, planeHeight } from "./helpers";
 import { HelicopterMarker } from "./helicopter-marker";
 import { SparksContainer } from "./spark";
@@ -19,39 +18,7 @@ export const View3d = () => {
 
   return (
     /* eslint-disable react/no-unknown-property */
-    // See: https://github.com/jsx-eslint/eslint-plugin-react/issues/3423
-    // flat=true disables tone mapping that is not a default in threejs, but is enabled by default in react-three-fiber.
-    // It makes textures match colors in the original image.
-    <Canvas
-      flat={true}
-    // // ① expose alpha & antialias on the WebGLRenderer
-    // gl={{ antialias: true, alpha: true }}
-    // // ② run code immediately after the renderer+scene are created
-    // onCreated={({ gl, scene }) => {
-    //   // make the clear color fully transparent
-    //   gl.setClearColor(0x000000, 0);
-
-    //   // remove the default gray background
-    //   scene.background = null;
-
-    //   // load a simple cube‐map sky (6 images in /public/textures/)
-    //   const loader = new THREE.CubeTextureLoader();
-    //   const envMap = loader.load([
-    //     '/textures/sky_px.jpg',
-    //     '/textures/sky_nx.jpg',
-    //     '/textures/sky_py.jpg',
-    //     '/textures/sky_ny.jpg',
-    //     '/textures/sky_pz.jpg',
-    //     '/textures/sky_nz.jpg',
-    //   ]);
-
-    //   // assign it as both background and environment
-    //   scene.environment = envMap;
-    //   scene.background  = envMap;
-    // }}
-    >
-      {/* Why do we need to setup provider again? No idea. It seems that components inside Canvas don't have
-          access to MobX stores anymore. */}
+    <Canvas flat={true}>
       <Provider stores={stores}>
         <PerspectiveCamera makeDefault={true} fov={33} position={cameraPos} up={DEFAULT_UP} />
         <OrbitControls
@@ -75,7 +42,6 @@ export const View3d = () => {
         <Terrain ref={terrainRef} />
         <HelicopterMarker />
         <SparksContainer dragPlane={terrainRef} />
-        <FireLineMarkersContainer dragPlane={terrainRef} />
       </Provider>
     </Canvas>
     /* eslint-enable react/no-unknown-property */

@@ -7,12 +7,6 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const webpack = require("webpack");
 
-// DEPLOY_PATH is set by the s3-deploy-action its value will be:
-// `branch/[branch-name]/` or `version/[tag-name]/`
-// See the following documentation for more detail:
-//   https://github.com/concord-consortium/s3-deploy-action/blob/main/README.md#top-branch-example
-const DEPLOY_PATH = process.env.DEPLOY_PATH;
-const API_BASE_URL = process.env.API_BASE_URL || "http://localhost:6969";
 const WS_URL = process.env.WS_URL || "";
 const GENERATED_ASSETS_BASE_URL = process.env.GENERATED_ASSETS_BASE_URL || "/data";
 const GENERATED_ASSETS_DIR = path.resolve(__dirname, "../../data/generated/terrain");
@@ -98,46 +92,6 @@ module.exports = (env, argv) => {
         {
           test: /\.(png|woff|woff2|eot|ttf)$/,
           type: 'asset',
-        },
-        {
-          test: /\.svg$/i,
-          exclude: /\.nosvgo\.svg$/i,
-          oneOf: [
-            {
-              // Do not apply SVGR import in CSS files.
-              issuer: /\.(css|scss|less)$/,
-              type: 'asset',
-            },
-            {
-              issuer: /\.tsx?$/,
-              loader: '@svgr/webpack',
-              options: {
-                svgoConfig: {
-                  plugins: [
-                    {
-                      // cf. https://github.com/svg/svgo/releases/tag/v2.4.0
-                      name: 'preset-default',
-                      params: {
-                        overrides: {
-                          // don't minify "id"s (i.e. turn randomly-generated unique ids into "a", "b", ...)
-                          // https://github.com/svg/svgo/blob/master/plugins/cleanupIds.js
-                          cleanupIds: { minify: false },
-                          // leave <line>s, <rect>s and <circle>s alone
-                          // https://github.com/svg/svgo/blob/master/plugins/convertShapeToPath.js
-                          convertShapeToPath: false,
-                          // leave "stroke"s and "fill"s alone
-                          // https://github.com/svg/svgo/blob/master/plugins/removeUnknownsAndDefaults.js
-                          removeUnknownsAndDefaults: { defaultAttrs: false },
-                          // leave viewBox alone
-                          removeViewBox: false
-                        }
-                      }
-                    }
-                  ]
-                }
-              }
-            }
-          ]
         }
       ]
     },
@@ -159,17 +113,10 @@ module.exports = (env, argv) => {
       }),
       new webpack.DefinePlugin({
         __APP_CONFIG__: JSON.stringify({
-          apiBaseUrl: API_BASE_URL,
           wsUrl: WS_URL,
           generatedAssetsBaseUrl: GENERATED_ASSETS_BASE_URL
         })
       }),
-      ...(DEPLOY_PATH ? [new HtmlWebpackPlugin({
-        filename: 'index-top.html',
-        template: 'src/index.html',
-        favicon: 'src/public/favicon.ico',
-        publicPath: DEPLOY_PATH
-      })] : []),
       new CopyWebpackPlugin({
         patterns: [
           { from: 'src/public' },

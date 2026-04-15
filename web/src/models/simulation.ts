@@ -6,7 +6,7 @@ import { Vector2 } from "three";
 import { getElevationData, getLandCoverZoneIndex, getRiverData, getUnburntIslandsData, getZoneIndex } from "./utils/data-loaders";
 import { Zone } from "./zone";
 import { FireEngine } from "./engine/fire-engine";
-import { getGridIndexForLocation, forEachPointBetween, dist } from "./utils/grid-utils";
+import { getGridIndexForLocation } from "./utils/grid-utils";
 import { WS_URL } from "../env";
 
 interface ICoords {
@@ -48,12 +48,10 @@ export class SimulationModel {
   @observable public dataReady = false;
   @observable public wind: IWindProps;
   @observable public sparks: Vector2[] = [];
-  @observable public fireLineMarkers: Vector2[] = [];
   @observable public zones: Zone[] = [];
   @observable public simulationStarted = false;
   @observable public simulationRunning = false;
   @observable public gymAllowedContinue = true;
-  @observable public lastFireLineTimestamp = -Infinity;
   @observable public lastHelitackTimestamp = -Infinity;
   @observable public totalCellCountByZone: {[key: number]: number} = {};
   @observable public burnedCellsInZone: {[key: number]: number} = {};
@@ -455,16 +453,6 @@ public connectSocket() {
     return this.zonesCount - this.sparks.length;
   }
 
-  @computed public get canAddFireLineMarker() {
-    // Only one fire line can be added at given time.
-    if (!this.config.fireLineAvailable) {
-      return false;
-    }
-    else {
-      return this.fireLineMarkers.length < 2 && this.time - this.lastFireLineTimestamp > this.config.fireLineDelay;
-    }
-  }
-
   @computed public get canUseHelitack() {
     if (!this.config.helitackAvailable) {
       return false;
@@ -601,8 +589,6 @@ public connectSocket() {
       
     }
 
-    this.applyFireLineMarkers();
-
     this.simulationRunning = true;
     this.prevTickTime = null;
 
@@ -618,8 +604,6 @@ public connectSocket() {
     this.simulationRunning = false;
     this.simulationStarted = false;
     this.cells.forEach(cell => cell.reset());
-    this.fireLineMarkers.length = 0;
-    this.lastFireLineTimestamp = -Infinity;
     this.lastHelitackTimestamp = -Infinity;
     this.updateCellsStateFlag();
     this.updateCellsElevationFlag();
@@ -826,85 +810,6 @@ private isHelicopterOnFire(fireStatusMap: number[][], array_x: number, array_y: 
   // Coords are in model units (feet).
   @action.bound public setSpark(idx: number, x: number, y: number) {
     this.sparks[idx] = new Vector2(x, y);
-  }
-
-  @action.bound public addFireLineMarker(x: number, y: number) {
-    if (this.canAddFireLineMarker) {
-      this.fireLineMarkers.push(new Vector2(x, y));
-      const count = this.fireLineMarkers.length;
-      if (count % 2 === 0) {
-        this.markFireLineUnderConstruction(this.fireLineMarkers[count - 2], this.fireLineMarkers[count - 1], true);
-      }
-    }
-  }
-
-  @action.bound public setFireLineMarker(idx: number, x: number, y: number) {
-    if (idx % 2 === 1 && idx - 1 >= 0) {
-      // Erase old line.
-      this.markFireLineUnderConstruction(this.fireLineMarkers[idx - 1], this.fireLineMarkers[idx], false);
-      // Update point.
-      this.fireLineMarkers[idx] = new Vector2(x, y);
-      this.limitFireLineLength(this.fireLineMarkers[idx - 1], this.fireLineMarkers[idx]);
-      // Draw a new line.
-      this.markFireLineUnderConstruction(this.fireLineMarkers[idx - 1], this.fireLineMarkers[idx], true);
-    }
-    if (idx % 2 === 0 && idx + 1 < this.fireLineMarkers.length) {
-      this.markFireLineUnderConstruction(this.fireLineMarkers[idx], this.fireLineMarkers[idx + 1], false);
-      this.fireLineMarkers[idx] = new Vector2(x, y);
-      this.limitFireLineLength(this.fireLineMarkers[idx + 1], this.fireLineMarkers[idx]);
-      this.markFireLineUnderConstruction(this.fireLineMarkers[idx], this.fireLineMarkers[idx + 1], true);
-    }
-  }
-
-  @action.bound public markFireLineUnderConstruction(start: ICoords, end: ICoords, value: boolean) {
-    const startGridX = Math.floor(start.x / this.config.cellSize);
-    const startGridY = Math.floor(start.y / this.config.cellSize);
-    const endGridX = Math.floor(end.x / this.config.cellSize);
-    const endGridY = Math.floor(end.y / this.config.cellSize);
-    forEachPointBetween(startGridX, startGridY, endGridX, endGridY, (x: number, y: number, idx: number) => {
-      if (idx % 2 === 0) {
-        // idx % 2 === 0 to make dashed line.
-        this.cells[getGridIndexForLocation(x, y, this.gridWidth)].isFireLineUnderConstruction = value;
-      }
-    });
-    this.updateCellsStateFlag();
-  }
-
-  // Note that this function modifies "end" point coordinates.
-  @action.bound public limitFireLineLength(start: ICoords, end: ICoords) {
-    const dRatio = dist(start.x, start.y, end.x, end.y) / this.config.maxFireLineLength;
-    if (dRatio > 1) {
-      end.x = start.x + (end.x - start.x) / dRatio;
-      end.y = start.y + (end.y - start.y) / dRatio;
-    }
-  }
-
-  @action.bound public applyFireLineMarkers() {
-    if (this.fireLineMarkers.length === 0) {
-      return;
-    }
-    for (let i = 0; i < this.fireLineMarkers.length; i += 2) {
-      if (i + 1 < this.fireLineMarkers.length) {
-        this.markFireLineUnderConstruction(this.fireLineMarkers[i], this.fireLineMarkers[i + 1], false);
-        this.buildFireLine(this.fireLineMarkers[i], this.fireLineMarkers[i + 1]);
-      }
-    }
-    this.fireLineMarkers.length = 0;
-    this.updateCellsStateFlag();
-    this.updateCellsElevationFlag();
-  }
-
-  @action.bound public buildFireLine(start: ICoords, end: ICoords) {
-    const startGridX = Math.floor(start.x / this.config.cellSize);
-    const startGridY = Math.floor(start.y / this.config.cellSize);
-    const endGridX = Math.floor(end.x / this.config.cellSize);
-    const endGridY = Math.floor(end.y / this.config.cellSize);
-    forEachPointBetween(startGridX, startGridY, endGridX, endGridY, (x: number, y: number) => {
-      const cell = this.cells[getGridIndexForLocation(x, y, this.gridWidth)];
-      cell.isFireLine = true;
-      cell.ignitionTime = Infinity;
-    });
-    this.lastFireLineTimestamp = this.time;
   }
 
   @action.bound public setHelitackPoint(array_x: number, array_y: number) {

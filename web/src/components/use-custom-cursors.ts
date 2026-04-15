@@ -1,13 +1,11 @@
 import { useStores } from "../use-stores";
 import sparkCursorImg from "../assets/interactions/spark-cursor.png";
-import fireLineCursorImg from "../assets/interactions/fire-line-cursor.png";
 import helitackCursorImg from "../assets/interactions/helitack-cursor-drop.png";
 import { Interaction } from "../models/ui";
 import { useEffect } from "react";
 
 const interactionCursors: {[key in Interaction]?: string} = {
   [Interaction.PlaceSpark]: `url(${sparkCursorImg}) 32 64, crosshair`,
-  [Interaction.DrawFireLine]: `url(${fireLineCursorImg}) 32 64, crosshair`,
   [Interaction.HoverOverDraggable]: "grab",
   [Interaction.Helitack]: `url(${helitackCursorImg}) 32 54, crosshair`
 };
