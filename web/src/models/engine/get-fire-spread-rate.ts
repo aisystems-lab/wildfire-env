@@ -154,42 +154,6 @@ const FuelConstants: { [key in VegetationType]: Fuel } = {
   }
 };
 
-
-
-// Values are specified in this PT story: https://www.pivotaltracker.com/story/show/170343321
-// const FuelConstants: {[key in Vegetation]: Fuel} = {
-//   [Vegetation.Grass]: {
-//     sav: 2100,
-//     netFuelLoad: 0.294,
-//     fuelBedDepth: 3,
-//     packingRatio: 0.00306,
-//     mx: 0.15
-//   },
-//   [Vegetation.Shrub]: {
-//     sav: 1672,
-//     netFuelLoad: 0.239,
-//     fuelBedDepth: 1.2,
-//     packingRatio: 0.01198,
-//     mx: 0.3
-//   },
-//   // TODO: the following two land types have not yet been configured via specification,
-//   // only by approximation to get the code to compile
-//   [Vegetation.Forest]: {
-//     sav: 1716,
-//     netFuelLoad: 0.0459,
-//     fuelBedDepth: 0.1,
-//     packingRatio: 0.04878,
-//     mx: 0.2
-//   },
-//   [Vegetation.ForestWithSuppression]: {
-//     sav: 1500,
-//     netFuelLoad: 0.689,
-//     fuelBedDepth: 0.5,
-//     packingRatio: 0.02224,
-//     mx: 0.25
-//   }
-// };
-
 // Helper vector used repeatedly in other calculations.
 const ORIGIN = new Vector2(0, 0);
 

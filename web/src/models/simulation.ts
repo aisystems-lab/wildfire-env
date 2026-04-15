@@ -377,17 +377,18 @@ export class SimulationModel {
           const zi = zoneIndex ? zoneIndex[index] : 0;
           // When fillTerrainEdge is set to true, edges are set to elevation 0.
           const isEdge = config.fillTerrainEdges &&
-            (x === 0 || x === this.gridWidth - 1 || y === 0 || y === this.gridHeight);
+            (x === 0 || x === this.gridWidth - 1 || y === 0 || y === this.gridHeight - 1);
           // Also, edges and their neighboring cells need to be marked as nonburnable to avoid fire spreading over
           // the terrain edge. Note that in this case two cells need to be marked as nonburnable due to way how
           // rendering code is calculating colors for mesh faces.
           const isNonBurnable = config.fillTerrainEdges &&
-            x <= 1 || x >= this.gridWidth - 2 || y <= 1 || y >= this.gridHeight - 2;
+            (x <= 1 || x >= this.gridWidth - 2 || y <= 1 || y >= this.gridHeight - 2);
           const cellOptions: CellOptions = {
             x, y,
             zone: zones[zi],
             zoneIdx: zi,
-            baseElevation: isEdge ? 0 : elevation?.[index]
+            baseElevation: isEdge ? 0 : elevation?.[index],
+            isUnburntIsland: isNonBurnable
           };
           if (!this.totalCellCountByZone[zi]) {
             this.totalCellCountByZone[zi] = 1;
@@ -609,13 +610,11 @@ private isHelicopterOnFire(fireStatusMap: number[][], array_x: number, array_y: 
     const radius = Math.round(this.config.helitackDropRadius / this.config.cellSize);
     let quenchedCells = 0;
     
-    for (let x = cell.x - radius; x < cell.x + radius; x++) {
-      for (let y = cell.y - radius ; y <= cell.y + radius; y++) {
+    for (let x = cell.x - radius; x <= cell.x + radius; x++) {
+      for (let y = cell.y - radius; y <= cell.y + radius; y++) {
         if ((x - cell.x) * (x - cell.x) + (y - cell.y) * (y - cell.y) <= radius * radius) {
-          const nextCellX = cell.x - (x - cell.x);
-          const nextCellY = cell.y - (y - cell.y);
-          if (nextCellX >= 0 && nextCellX < this.gridWidth && nextCellY >= 0 && nextCellY < this.gridHeight) {
-            const targetCellIndex = getGridIndexForLocation(nextCellX, nextCellY, this.gridWidth);
+          if (x >= 0 && x < this.gridWidth && y >= 0 && y < this.gridHeight) {
+            const targetCellIndex = getGridIndexForLocation(x, y, this.gridWidth);
             const targetCell = this.cells[targetCellIndex];
             if (targetCell) {
               targetCell.helitackDropCount++;

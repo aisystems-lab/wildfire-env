@@ -10,20 +10,6 @@ export interface IStores {
 }
 
 export const createStores = (): IStores => {
-  // Export some variables and types to window. This lets authors open browser console and load preset manually like:
-  // sim.load({
-  //   modelWidth: 120000,
-  //   modelHeight: 80000,
-  //   gridWidth: 240,
-  //   heightmapMaxElevation: 20000,
-  //   zones: [
-  //     { terrainType: TerrainType.Foothills, vegetation: Vegetation.Shrub, droughtLevel: 1 },
-  //     { terrainType: TerrainType.Foothills, vegetation: Vegetation.Shrub, droughtLevel: 1 },
-  //   ],
-  //   zoneIndex: [
-  //     [ 0, 1 ]
-  //   ]
-  // })
   const simulation = new SimulationModel(
     presets[getUrlConfig().preset || getDefaultConfig().preset],
     false

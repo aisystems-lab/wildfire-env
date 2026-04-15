@@ -81,8 +81,6 @@ export const getDefaultConfig: () => IUrlConfig = () => ({
   // Most of the presets will use heightmap images that work the best with 120000x80000ft dimensions.
   modelWidth: 120000,
   modelHeight: 80000,
-  // 240 works well with presets based on heightmap images.
-  // gridWidth: 1200, //HD
   gridWidth: 240, 
   get cellSize() { return this.modelWidth / this.gridWidth; },
   get gridHeight() { return Math.ceil(this.modelHeight / this.cellSize); },

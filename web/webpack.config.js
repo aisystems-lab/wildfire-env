@@ -16,7 +16,7 @@ module.exports = (env, argv) => {
   const devMode = argv.mode !== 'production';
 
   return {
-    context: __dirname, // to automatically find tsconfig.json
+    context: __dirname,
     devtool: devMode ? 'eval-cheap-module-source-map' : 'source-map',
     entry: './src/index.tsx',
     mode: 'development',
@@ -24,7 +24,6 @@ module.exports = (env, argv) => {
       path: PACKAGE_DIST_DIR,
       filename: 'assets/index.[contenthash].js',
     },
-    // Add this devServer configuration
     devServer: {
       allowedHosts: 'all',
       host: '0.0.0.0',
@@ -54,7 +53,7 @@ module.exports = (env, argv) => {
           test: /\.tsx?$/,
           loader: 'ts-loader',
           options: {
-            transpileOnly: true // IMPORTANT! use transpileOnly mode to speed-up compilation
+            transpileOnly: true
           }
         },
         {
@@ -99,7 +98,6 @@ module.exports = (env, argv) => {
       extensions: [ '.ts', '.tsx', '.js' ]
     },
     stats: {
-      // suppress "export not found" warnings about re-exported types
       warningsFilter: /export .* was not found in/
     },
     plugins: [

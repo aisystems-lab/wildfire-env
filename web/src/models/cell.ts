@@ -7,7 +7,6 @@ export enum FireState {
   Burnt = 2
 }
 
-// See: https://www.pivotaltracker.com/story/show/170344417
 export enum BurnIndex {
   Low = 0,
   Medium = 1,

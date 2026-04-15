@@ -6,15 +6,6 @@ import { dist, withinDist, getGridIndexForLocation, forEachPointBetween, directN
 
 const modelDay = 1440; // minutes
 
-// const endOfLowIntensityFireProbability: {[key: number]: number} = {
-//   0: 0.0,
-//   1: 0.6,
-//   2: 0.6,
-//   3: 0.7,
-//   4: 0.8,
-//   5: 1.0
-// };
-
 // Lowered probabilities so the fire persists much longer:
 const endOfLowIntensityFireProbability: { [day: number]: number } = {
   0: 0.0,   // cannot end on day 0

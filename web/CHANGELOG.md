@@ -1,7 +1,7 @@
 Version MAJOR.MINOR.PATCH - released MONTHNAME DAY, YEAR
 
 ### Features/Improvements
-- Story name [_id_](https://www.pivotaltracker.com/story/show/_id_)
+- Describe notable frontend or viewer changes here.
 
 ### Bug Fixes
-- Story name [_id_](https://www.pivotaltracker.com/story/show/_id_)
+- Describe important fixes here.
