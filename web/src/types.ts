@@ -13,15 +13,9 @@ export enum Vegetation {
   ForestWithSuppression = 3
 }
 
-export const vegetationLabels: Record<Vegetation, string> = {
-  [Vegetation.Grass]: "Grass",
-  [Vegetation.Shrub]: "Shrub",
-  [Vegetation.Forest]: "Forest",
-  [Vegetation.ForestWithSuppression]: "Forest With Suppression"
-};
-
 export enum TerrainType {
   Mountains = "mountains",
+  Foothills = "foothills",
   Plains = "plains",
   Hills = "hills",
   Tropical = "tropical",
@@ -34,26 +28,12 @@ export enum TerrainType {
   Water = "water"
 }
 
-
-export const terrainLabels: Record<TerrainType, string> = {
-  [TerrainType.Plains]: "Plains",
-  [TerrainType.Foothills]: "Foothills",
-  [TerrainType.Mountains]: "Mountains",
-};
-
 export enum DroughtLevel {
   NoDrought = 0,
   MildDrought = 1,
   MediumDrought = 2,
   SevereDrought = 3
 }
-
-export const droughtLabels: Record<DroughtLevel, string> = {
-  [DroughtLevel.NoDrought]: "No Drought",
-  [DroughtLevel.MildDrought]: "Mild Drought",
-  [DroughtLevel.MediumDrought]: "Medium Drought",
-  [DroughtLevel.SevereDrought]: "Severe Drought",
-};
 
 export enum VegetationType {
   EvergreenNeedleleaf = 1,

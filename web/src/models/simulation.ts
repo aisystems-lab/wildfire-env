@@ -1,18 +1,13 @@
 import { action, computed, observable, makeObservable } from "mobx";
 import { IWindProps, TerrainType } from "../types";
-import {  BurnIndex, Cell, CellOptions, FireState } from "./cell";
+import { BurnIndex, Cell, CellOptions, FireState } from "./cell";
 import { getDefaultConfig, ISimulationConfig, getUrlConfig } from "../config";
 import { Vector2 } from "three";
-import { getElevationData, getLandCoverZoneIndex, getRiverData, getUnburntIslandsData, getZoneIndex } from "./utils/data-loaders";
+import { getElevationData, getLandCoverZoneIndex, getRiverData } from "./utils/data-loaders";
 import { Zone } from "./zone";
 import { FireEngine } from "./engine/fire-engine";
 import { getGridIndexForLocation } from "./utils/grid-utils";
 import { WS_URL } from "../env";
-
-interface ICoords {
-  x: number;
-  y: number;
-}
 
 // When config.changeWindOnDay is defined, but config.newWindSpeed is not, the model will use random value limited
 // by this constant.
@@ -27,9 +22,7 @@ const DEFAULT_ZONE_DIVISION = {
   ]
 };
 
-// This class is responsible for data loading, adding sparks and fire lines and so on. It's more focused
-// on management and interactions handling. Core calculations are delegated to FireEngine.
-// Also, all the observable properties should be here, so the view code can observe them.
+// Frontend simulation state. Core fire spread calculations are delegated to FireEngine.
 export class SimulationModel {
   public config: ISimulationConfig;
   public prevTickTime: number | null;
@@ -67,344 +60,199 @@ export class SimulationModel {
   @observable public helicopterGridCoord: [number, number] = [70, 30];
   @observable public helicopterModelPosition = new Vector2(0, 0);
 
- // Create a new WebSocket object
-//  private socket = new WebSocket('ws://localhost:8765');
-private socket: WebSocket | null = null;
-private shouldReconnect = true;
+  private socket: WebSocket | null = null;
+  private shouldReconnect = true;
 
-// WebSocket Event Handlers
-constructor(presetConfig: Partial<ISimulationConfig>, autoloadTerrain = true) {
+  constructor(presetConfig: Partial<ISimulationConfig>, autoloadTerrain = true) {
     makeObservable(this);
     this.dataReadyPromise = Promise.resolve();
     this.configure(presetConfig);
     if (autoloadTerrain) {
       this.populateCellsData();
     }
-}
-
-private backendGridToModelFeet(gridX: number, gridY: number) {
-  return {
-    x: (gridX + 0.5) * this.config.cellSize,
-    y: (this.gridHeight - gridY - 0.5) * this.config.cellSize
-  };
-}
-
-private buildBackendZones() {
-  return Array.from({ length: 18 }, (_, idx) => new Zone({
-    terrainType: this.config.zones[idx]?.terrainType ?? TerrainType.Plains,
-    vegetation: (idx + 1) as any,
-    droughtLevel: this.config.zones[idx]?.droughtLevel ?? 0
-  }));
-}
-
-@action
-private initializeBackendTerrain(message: any) {
-  const vegetationGrid = message.vegetation;
-  const elevationGrid = message.elevation;
-  const riverGrid = message.is_river;
-
-  if (!Array.isArray(vegetationGrid) || !Array.isArray(elevationGrid) || !Array.isArray(riverGrid)) {
-    console.warn("Invalid terrain payload", message);
-    return;
   }
 
-  if (typeof message.grid_width === "number") {
-    this.config.gridWidth = message.grid_width;
-  }
-  if (typeof message.model_width === "number") {
-    this.config.modelWidth = message.model_width;
-  }
-  if (typeof message.model_height === "number") {
-    this.config.modelHeight = message.model_height;
-  }
-  if (typeof message.heightmap_max_elevation === "number") {
-    this.config.heightmapMaxElevation = message.heightmap_max_elevation;
+  private backendGridToModelFeet(gridX: number, gridY: number) {
+    return {
+      x: (gridX + 0.5) * this.config.cellSize,
+      y: (this.gridHeight - gridY - 0.5) * this.config.cellSize
+    };
   }
 
-  this.backendDriven = true;
-  this.dataReady = false;
-  this.engine = null;
-  this.zones = this.buildBackendZones();
-  this.cells.length = 0;
-  this.totalCellCountByZone = {};
-  this.sparks.length = 0;
-
-  if (Array.isArray(message.spark_coord) && message.spark_coord.length === 2) {
-    const [sparkX, sparkY] = message.spark_coord;
-    const spark = this.backendGridToModelFeet(sparkX, sparkY);
-    this.setSpark(0, spark.x, spark.y);
+  private buildBackendZones() {
+    return Array.from({ length: 18 }, (_, idx) => new Zone({
+      terrainType: this.config.zones[idx]?.terrainType ?? TerrainType.Plains,
+      vegetation: (idx + 1) as any,
+      droughtLevel: this.config.zones[idx]?.droughtLevel ?? 0
+    }));
   }
 
-  if (Array.isArray(message.helicopter_coord) && message.helicopter_coord.length === 2) {
-    const [heliX, heliY] = message.helicopter_coord;
-    const helicopter = this.backendGridToModelFeet(heliX, heliY);
-    this.helicopterGridCoord = [heliX, heliY];
-    this.helicopterModelPosition = new Vector2(helicopter.x, helicopter.y);
-  }
+  @action
+  private initializeBackendTerrain(message: any) {
+    const vegetationGrid = message.vegetation;
+    const elevationGrid = message.elevation;
+    const riverGrid = message.is_river;
 
-  for (let y = 0; y < this.gridHeight; y++) {
-    const vegetationRow = vegetationGrid[y];
-    const elevationRow = elevationGrid[y];
-    const riverRow = riverGrid[y];
-
-    for (let x = 0; x < this.gridWidth; x++) {
-      const vegetation = Array.isArray(vegetationRow) ? (vegetationRow[x] ?? 16) : 16;
-      const zoneIdx = Math.max(0, Math.min(this.zones.length - 1, vegetation - 1));
-      const cellOptions: CellOptions = {
-        x,
-        y,
-        zone: this.zones[zoneIdx],
-        zoneIdx,
-        baseElevation: Array.isArray(elevationRow) ? (elevationRow[x] ?? 0) : 0,
-        isRiver: Array.isArray(riverRow) ? Boolean(riverRow[x]) : false,
-      };
-      this.cells.push(new Cell(cellOptions));
-      this.totalCellCountByZone[zoneIdx] = (this.totalCellCountByZone[zoneIdx] ?? 0) + 1;
+    if (!Array.isArray(vegetationGrid) || !Array.isArray(elevationGrid) || !Array.isArray(riverGrid)) {
+      console.warn("Invalid terrain payload", message);
+      return;
     }
-  }
 
-  this.dataReady = true;
-  this.dataReadyPromise = Promise.resolve();
-  this.updateCellsElevationFlag();
-  this.updateCellsStateFlag();
-}
+    if (typeof message.grid_width === "number") {
+      this.config.gridWidth = message.grid_width;
+    }
+    if (typeof message.model_width === "number") {
+      this.config.modelWidth = message.model_width;
+    }
+    if (typeof message.model_height === "number") {
+      this.config.modelHeight = message.model_height;
+    }
+    if (typeof message.heightmap_max_elevation === "number") {
+      this.config.heightmapMaxElevation = message.heightmap_max_elevation;
+    }
 
-private async applyBackendSnapshot(message: any) {
-  if (!this.dataReady) {
-    await this.dataReadyPromise;
-  }
-
-  const fireStateGrid = message.fire_state;
-  const helitackDropsGrid = message.helitack_drops;
-
-  if (!Array.isArray(fireStateGrid) || !Array.isArray(helitackDropsGrid)) {
-    console.warn("Invalid snapshot payload", message);
-    return;
-  }
-
-  this.backendDriven = true;
-  this.simulationStarted = true;
-  this.simulationRunning = !(message.terminated || message.truncated);
-  this.config.showBurnIndex = false;
-  this.time = typeof message.simulation_time === "number" ? message.simulation_time : this.time;
-  this.episodeCount = typeof message.episode === "number" ? message.episode : this.episodeCount;
-  this.stepCount = typeof message.step_count === "number" ? message.step_count : this.stepCount;
-  this.cellsBurning = typeof message.cells_burning === "number" ? message.cells_burning : this.cellsBurning;
-  this.cellsBurnt = typeof message.cells_burnt === "number" ? message.cells_burnt : this.cellsBurnt;
-
-  if (Array.isArray(message.helicopter_coord) && message.helicopter_coord.length === 2) {
-    const [heliX, heliY] = message.helicopter_coord;
-    const helicopter = this.backendGridToModelFeet(heliX, heliY);
-    this.helicopterGridCoord = [heliX, heliY];
-    this.helicopterModelPosition = new Vector2(helicopter.x, helicopter.y);
-    console.debug("Helicopter snapshot", {
-      grid: { x: heliX, y: heliY },
-      modelFeet: { x: helicopter.x, y: helicopter.y }
-    });
-  }
-
-  if (Array.isArray(message.spark_coord) && message.spark_coord.length === 2) {
-    const [sparkX, sparkY] = message.spark_coord;
+    this.backendDriven = true;
+    this.dataReady = false;
+    this.engine = null;
+    this.zones = this.buildBackendZones();
+    this.cells.length = 0;
+    this.totalCellCountByZone = {};
     this.sparks.length = 0;
-    const spark = this.backendGridToModelFeet(sparkX, sparkY);
-    this.setSpark(0, spark.x, spark.y);
-  }
 
-  for (let y = 0; y < this.gridHeight; y++) {
-    const fireStateRow = fireStateGrid[y];
-    const helitackRow = helitackDropsGrid[this.gridHeight - 1 - y];
-    if (!Array.isArray(fireStateRow) || !Array.isArray(helitackRow)) {
-      continue;
+    if (Array.isArray(message.spark_coord) && message.spark_coord.length === 2) {
+      const [sparkX, sparkY] = message.spark_coord;
+      const spark = this.backendGridToModelFeet(sparkX, sparkY);
+      this.setSpark(0, spark.x, spark.y);
     }
 
-    for (let x = 0; x < this.gridWidth; x++) {
-      const index = getGridIndexForLocation(x, y, this.gridWidth);
-      const cell = this.cells[index];
-      if (!cell) {
+    if (Array.isArray(message.helicopter_coord) && message.helicopter_coord.length === 2) {
+      const [heliX, heliY] = message.helicopter_coord;
+      const helicopter = this.backendGridToModelFeet(heliX, heliY);
+      this.helicopterGridCoord = [heliX, heliY];
+      this.helicopterModelPosition = new Vector2(helicopter.x, helicopter.y);
+    }
+
+    for (let y = 0; y < this.gridHeight; y++) {
+      const vegetationRow = vegetationGrid[y];
+      const elevationRow = elevationGrid[y];
+      const riverRow = riverGrid[y];
+
+      for (let x = 0; x < this.gridWidth; x++) {
+        const vegetation = Array.isArray(vegetationRow) ? (vegetationRow[x] ?? 16) : 16;
+        const zoneIdx = Math.max(0, Math.min(this.zones.length - 1, vegetation - 1));
+        const cellOptions: CellOptions = {
+          x,
+          y,
+          zone: this.zones[zoneIdx],
+          zoneIdx,
+          baseElevation: Array.isArray(elevationRow) ? (elevationRow[x] ?? 0) : 0,
+          isRiver: Array.isArray(riverRow) ? Boolean(riverRow[x]) : false,
+        };
+        this.cells.push(new Cell(cellOptions));
+        this.totalCellCountByZone[zoneIdx] = (this.totalCellCountByZone[zoneIdx] ?? 0) + 1;
+      }
+    }
+
+    this.dataReady = true;
+    this.dataReadyPromise = Promise.resolve();
+    this.updateCellsElevationFlag();
+    this.updateCellsStateFlag();
+  }
+
+  private async applyBackendSnapshot(message: any) {
+    if (!this.dataReady) {
+      await this.dataReadyPromise;
+    }
+
+    const fireStateGrid = message.fire_state;
+    const helitackDropsGrid = message.helitack_drops;
+
+    if (!Array.isArray(fireStateGrid) || !Array.isArray(helitackDropsGrid)) {
+      console.warn("Invalid snapshot payload", message);
+      return;
+    }
+
+    this.backendDriven = true;
+    this.simulationStarted = true;
+    this.simulationRunning = !(message.terminated || message.truncated);
+    this.config.showBurnIndex = false;
+    this.time = typeof message.simulation_time === "number" ? message.simulation_time : this.time;
+    this.episodeCount = typeof message.episode === "number" ? message.episode : this.episodeCount;
+    this.stepCount = typeof message.step_count === "number" ? message.step_count : this.stepCount;
+    this.cellsBurning = typeof message.cells_burning === "number" ? message.cells_burning : this.cellsBurning;
+    this.cellsBurnt = typeof message.cells_burnt === "number" ? message.cells_burnt : this.cellsBurnt;
+
+    if (Array.isArray(message.helicopter_coord) && message.helicopter_coord.length === 2) {
+      const [heliX, heliY] = message.helicopter_coord;
+      const helicopter = this.backendGridToModelFeet(heliX, heliY);
+      this.helicopterGridCoord = [heliX, heliY];
+      this.helicopterModelPosition = new Vector2(helicopter.x, helicopter.y);
+    }
+
+    if (Array.isArray(message.spark_coord) && message.spark_coord.length === 2) {
+      const [sparkX, sparkY] = message.spark_coord;
+      this.sparks.length = 0;
+      const spark = this.backendGridToModelFeet(sparkX, sparkY);
+      this.setSpark(0, spark.x, spark.y);
+    }
+
+    for (let y = 0; y < this.gridHeight; y++) {
+      const fireStateRow = fireStateGrid[y];
+      const helitackRow = helitackDropsGrid[this.gridHeight - 1 - y];
+      if (!Array.isArray(fireStateRow) || !Array.isArray(helitackRow)) {
         continue;
       }
 
-      cell.fireState = fireStateRow[x] ?? FireState.Unburnt;
-      cell.helitackDropCount = helitackRow[x] ?? 0;
-    }
-  }
+      for (let x = 0; x < this.gridWidth; x++) {
+        const index = getGridIndexForLocation(x, y, this.gridWidth);
+        const cell = this.cells[index];
+        if (!cell) {
+          continue;
+        }
 
-  this.updateCellsStateFlag();
-}
-
-public connectSocket() {
-  this.shouldReconnect = true;
-  if (this.socket && this.socket.readyState === 1) {
-    console.log("🔁 WebSocket already connected.");
-    return;
-  }
-  // const host = window.location.hostname;
-  // const wsUrl = `ws://${host}:8765`;
-  // this.socket = new WebSocket(wsUrl);
-  // this.socket = new WebSocket("ws://python-backend:8765");
-  // const WS_URL = process.env.REACT_APP_WS_URL
-  this.socket = new WebSocket(WS_URL);
-  console.log("🌐 Connecting to WebSocket server...");
-
-  this.socket.onopen = () => {
-    // this.reload();
-    // this.handleReset();
-    console.log("✅ Connected to the WebSocket server");
-    console.log('Socket', this.socket);
-
-    console.log(this.gridHeight,this.gridWidth)
-    
-    
-    this.socket?.send(JSON.stringify({ type: "hello", role: "renderer" }));
-
-    // const location = useLocation();
-    const params = new URLSearchParams(window.location.search);
-
-    const lat = params.get('lat');
-    const lon = params.get('lon');
-    const date = params.get('date');
-
-    console.log({ lat, lon, date });
-  };
-
-  this.socket.onmessage = (event) => {
-    console.log("🔥 Received from Python:", event.data);
-    const message = JSON.parse(event.data);
-    if (message.type === "terrain_init") {
-      this.initializeBackendTerrain(message);
-    } else if (message.type === "snapshot") {
-      void this.applyBackendSnapshot(message);
-    } else if (message.type === "pong") {
-      console.log("✅ Received pong from server");
+        cell.fireState = fireStateRow[x] ?? FireState.Unburnt;
+        cell.helitackDropCount = helitackRow[x] ?? 0;
+      }
     }
 
-    this.gymAllowedContinue = true;
-    requestAnimationFrame(this.rafCallback);
-  };
+    this.updateCellsStateFlag();
+  }
 
-  this.socket.onerror = (err) => {
-    console.error("❌ WebSocket error:", err);
-  };
-
-  this.socket.onclose = (e) => {
-    if (!this.shouldReconnect) {
+  public connectSocket() {
+    this.shouldReconnect = true;
+    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
       return;
     }
-    console.warn("⚠️ WebSocket closed. Attempting reconnect in 2s...");
-    setTimeout(() => this.connectSocket(), 2000);
-  };
-}
 
-  
+    this.socket = new WebSocket(WS_URL);
 
-  // Reset handler when receiving 'reset' action
-  @action
-  private async handleReset() {
-    console.log('HANDLE RESET IS GETTING CALLED');
-    
-    this.reload();
-
-    await this.dataReadyPromise;
-    this.setSpark(0, 60000 - 1, 40000 - 1);
-
-    this.start();
-    const cells2D = this.generateFireStatusMapFromCells(
-      this.engine?.cells ?? [],
-      this.gridWidth,
-      this.gridHeight
-    );
-
-    const response = {
-      cells: cells2D,
-      done: false,
-      cellsBurning: 0,
-      cellsBurnt: 0,
-      quenchedCells: 0,
-      on_fire: false
+    this.socket.onopen = () => {
+      this.socket?.send(JSON.stringify({ type: "hello", role: "renderer" }));
     };
 
-    if (this.socket?.readyState === WebSocket.OPEN) {
-      console.log("🧩 React socket object:", this.socket);
-
-      await new Promise(res => setTimeout(res, 100));
-      this.socket?.send(JSON.stringify(response));
-
-      console.log("✅ Reset response sent");
-    } else {
-      console.warn("❌ Socket not open on reset");
-    }
-  }
-
-  @action
-  private handleHelicopterMovement(helicopter_coord: number[]) {
-      if (helicopter_coord) {
-        // Use coordinates directly - Python already sends them as [x, y]
-        let array_x = helicopter_coord[0];  // First element is x
-        let array_y = helicopter_coord[1];  // Second element is y
-  
-        // Ensure coordinates are within bounds
-        array_x = Math.max(0, Math.min(this.gridWidth - 1, array_x));
-        array_y = Math.max(0, Math.min(this.gridHeight - 1, array_y));
-  
-        // Pass array coordinates directly to setHelitackPoint
-        const quenchedCells = this.setHelitackPoint(array_x, array_y);
-        const cells2D = this.generateFireStatusMapFromCells(this.engine?.cells ?? [], this.gridWidth, this.gridHeight);
-  
-        const cellsBurning = this.engine?.cells.filter((cell) => cell.fireState === FireState.Burning).length;
-        let done = false;
-        if ((!this.simulationRunning && this.engine?.fireDidStop) || cellsBurning === 0) {
-          done = true;
-        }
-        let on_fire = this.isHelicopterOnFire(cells2D, array_x, array_y);
-        const response = {
-          cells: cells2D,
-          done,
-          cellsBurning,
-          cellsBurnt: this.engine?.cells.filter((cell) => cell.fireState === FireState.Burnt).length,
-          quenchedCells,
-          on_fire
-        };
-  
-        try {
-          if (this.socket?.readyState === WebSocket.OPEN) {
-            this.socket.send(JSON.stringify(response));
-            console.log("✅ Step response sent (action 4)");
-          }
-        } catch (e) {
-          console.log(e);
-        }
+    this.socket.onmessage = (event) => {
+      const message = JSON.parse(event.data);
+      if (message.type === "terrain_init") {
+        this.initializeBackendTerrain(message);
+      } else if (message.type === "snapshot") {
+        void this.applyBackendSnapshot(message);
       }
-  }
-  @action
-  private handleOtherActions(helicopter_coord: number[]) {
-      // Use coordinates directly - Python already sends them as [x, y]
-      let array_x = helicopter_coord[0];  // First element is x
-      let array_y = helicopter_coord[1];  // Second element is y
-  
-      // Ensure coordinates are within bounds
-      array_x = Math.max(0, Math.min(this.gridWidth - 1, array_x));
-      array_y = Math.max(0, Math.min(this.gridHeight - 1, array_y));
-  
-      const cells2D = this.generateFireStatusMapFromCells(this.engine?.cells ?? [], this.gridWidth, this.gridHeight);
-  
-      const cellsBurning = this.engine?.cells.filter((cell) => cell.fireState === FireState.Burning).length;
-      const done = !this.simulationRunning && this.engine?.fireDidStop;
-      let on_fire = this.isHelicopterOnFire(cells2D, array_x, array_y);
-      const response = {
-        cells: cells2D,
-        done,
-        cellsBurning,
-        cellsBurnt: this.engine?.cells.filter((cell) => cell.fireState === FireState.Burnt).length,
-        quenchedCells: 0,
-        on_fire
-      };
-      if (this.socket?.readyState === WebSocket.OPEN) {
-        this.socket.send(JSON.stringify(response));
-        console.log("✅ Step response sent");
-      }
-  }
 
-  // Cleanup method to close the socket when no longer needed
+      this.gymAllowedContinue = true;
+      requestAnimationFrame(this.rafCallback);
+    };
+
+    this.socket.onerror = (err) => {
+      console.error("WebSocket error", err);
+    };
+
+    this.socket.onclose = () => {
+      if (!this.shouldReconnect) {
+        return;
+      }
+      setTimeout(() => this.connectSocket(), 2000);
+    };
+  }
   @action
   public cleanup() {
     this.shouldReconnect = false;
@@ -476,20 +324,7 @@ public connectSocket() {
 
   @action.bound public setInputParamsFromConfig() {
     const config = this.config;
-    console.log(config);
-    
-    console.log(config.zones);
-    
     this.zones = config.zones.map(options => new Zone(options));
-  //   this.zones = Array.from({ length: 18 }, (_, i) => new Zone({
-  //   terrainType: i,
-  //   name: `Class ${i}`,
-  //   vegetationDensity: 1,
-  //   terrainRoughness: 1,
-  //   fuelLoad: 1,
-  // }));
-
-    
     if (config.zonesCount) {
       this.zones.length = config.zonesCount;
     }
@@ -522,7 +357,6 @@ public connectSocket() {
     this.dataReady = false;
     const config = this.config;
     const zones = this.zones;
-    console.log(zones);
     this.totalCellCountByZone = {};
     this.dataReadyPromise = Promise.all([
       getLandCoverZoneIndex(config), getElevationData(config, zones), getRiverData(config)
@@ -532,10 +366,8 @@ public connectSocket() {
         return;
       }
       const zoneIndex = values[0];
-      console.log(zoneIndex);
       const elevation = values[1];
       const river = null; // Removing the river for now
-      // const unburntIsland = values[3];
 
       this.cells.length = 0;
 
@@ -543,10 +375,6 @@ public connectSocket() {
         for (let x = 0; x < this.gridWidth; x++) {
           const index = getGridIndexForLocation(x, y, this.gridWidth);
           const zi = zoneIndex ? zoneIndex[index] : 0;
-          // console.log(zi);
-          // console.log(zones[zi]);
-          
-          // const isRiver = river && river[index] > 0;
           // When fillTerrainEdge is set to true, edges are set to elevation 0.
           const isEdge = config.fillTerrainEdges &&
             (x === 0 || x === this.gridWidth - 1 || y === 0 || y === this.gridHeight);
@@ -585,15 +413,12 @@ public connectSocket() {
     }
     if (!this.engine) {
       this.engine = new FireEngine(this.cells, this.wind, this.sparks, this.config);
-      console.log(this.engine);
-      
     }
 
     this.simulationRunning = true;
     this.prevTickTime = null;
 
     requestAnimationFrame(this.rafCallback);
-    console.log(this.cells.length)
   }
 
   @action.bound public stop() {
@@ -628,10 +453,7 @@ public connectSocket() {
     this.restart();
     // Reset user-controlled properties too.
     this.setInputParamsFromConfig();
-    // this.load(presetConfig)
-    // debugger;
     this.populateCellsData();
-    // debugger;
   }
 
   @action.bound public rafCallback(time: number) {
@@ -670,41 +492,7 @@ public connectSocket() {
     }
 
     this.tick(timeStep);
-
-    
-    // Usage:
-    // const gridWidth = 240;
-    // const gridHeight = 160;
-    // const cells2D = this.reshapeTo2D(this.engine?.cells ?? [], this.gridWidth, this.gridHeight);
-    // console.log(cells2D);
-    
-    // this.socket.send(JSON.stringify({
-    //   "ignitionTimes":JSON.stringify(cells2D),
-    //   "print":this.time
-    // }))
-    this.gymAllowedContinue = false
-    // this.simulationRunning = false
-  }
-
-  @action.bound private reshapeTo2D(cells: any[], width: number, height: number): any[][] {
-    const grid: any[][] = [];
-  
-    for (let row = 0; row < height; row++) {
-      const start = row * width;
-      const end = start + width;
-      const rowIgnitionTimes = cells.slice(start, end).map(cell => {
-        if(cell.fireState === FireState.Burnt){
-          return -1
-        }else if(cell.ignitionTime !== Infinity){
-          return cell.ignitionTime
-        }else{
-          return 0
-        }
-      });
-      grid.push(rowIgnitionTimes);
-    }
-  
-    return grid;
+    this.gymAllowedContinue = false;
   }
 
   /**
@@ -728,14 +516,11 @@ private generateFireStatusMapFromCells(cells: any[], width: number, height: numb
 
     fireStatusMap.push(rowData);
   }
-  // console.log(fireStatusMap);
-  
   return fireStatusMap;
 }
 
 @action.bound
 private isHelicopterOnFire(fireStatusMap: number[][], array_x: number, array_y: number): boolean {
-  // Add bounds checking
   if (!fireStatusMap || array_y < 0 || array_y >= fireStatusMap.length || 
       array_x < 0 || array_x >= fireStatusMap[0].length) {
     console.warn(`Invalid coordinates: x=${array_x}, y=${array_y}, map size=${fireStatusMap?.length}x${fireStatusMap[0]?.length}`);
@@ -754,21 +539,12 @@ private isHelicopterOnFire(fireStatusMap: number[][], array_x: number, array_y: 
       this.engine.updateFire(this.time);
       if (this.engine.fireDidStop) {
         this.simulationRunning = false;
-        console.log(timeStep);
-        console.log(this.time);
       }
     }
 
     this.updateCellsStateFlag();
 
     this.changeWindIfNecessary();
-    // console.log(this.time,this.engine);
-    // let burntCells = this.engine?.cells.filter(cell => cell.fireState === FireState.Burnt)
-    // let burningCells = this.engine?.cells
-    // const index = getGridIndexForLocation(204, 78, this.gridWidth)
-    // console.log(this.time,this.cells[index]);
-    
-    
   }
 
   @action.bound public changeWindIfNecessary() {
@@ -813,13 +589,9 @@ private isHelicopterOnFire(fireStatusMap: number[][], array_x: number, array_y: 
   }
 
   @action.bound public setHelitackPoint(array_x: number, array_y: number) {
-    console.log(`Helitack coordinates: (${array_x}, ${array_y})`);
-    
-    // Use array coordinates directly
     const startGridX = array_x;
     const startGridY = array_y;
     
-    // Validate coordinates
     if (startGridX < 0 || startGridX >= this.gridWidth || 
         startGridY < 0 || startGridY >= this.gridHeight) {
         console.warn(`Invalid helitack coordinates: (${startGridX}, ${startGridY})`);

@@ -2,7 +2,6 @@ import { TerrainType } from "../../types";
 import { ISimulationConfig } from "../../config";
 import { getInputData } from "./image-utils";
 import { Zone } from "../zone";
-import { log } from "console";
 import { GENERATED_ASSETS_BASE_URL } from "../../env";
 
 // Maps zones config to image data files (see data dir)
@@ -72,7 +71,6 @@ export const getElevationData = (
   zones: Zone[]
 ): Promise<number[] | undefined> => {
   let elevation = config.elevation;
-  console.log(elevation);
 
   if (!elevation) {
     elevation = `${GENERATED_ASSETS_BASE_URL}/heightmap_1200x813_2.png`;

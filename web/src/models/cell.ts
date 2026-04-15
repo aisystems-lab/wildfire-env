@@ -1,5 +1,5 @@
 import { Zone, moistureLookupByLandCover, moistureLookups } from "./zone";
-import { Vegetation, DroughtLevel, VegetationType } from "../types";
+import { DroughtLevel, VegetationType } from "../types";
 
 export enum FireState {
   Unburnt = 0,
@@ -90,40 +90,7 @@ export class Cell {
     return this.burnIndex === BurnIndex.Low && this.vegetation === VegetationType.PermanentWetlands; //Accomodate all non-burnable vegetation types
   }
 
-  // public get burnIndex() {
-  //   // Values based on: https://www.pivotaltracker.com/story/show/170344417/comments/209774367
-  //   if (this.vegetation === Vegetation.Grass) {
-  //     if (this.spreadRate < 45) {
-  //       return BurnIndex.Low;
-  //     }
-  //     return BurnIndex.Medium;
-  //   }
-  //   if (this.vegetation === Vegetation.Shrub) {
-  //     if (this.spreadRate < 10) {
-  //       return BurnIndex.Low;
-  //     }
-  //     if (this.spreadRate < 50) {
-  //       return BurnIndex.Medium;
-  //     }
-  //     return BurnIndex.High;
-  //   }
-  //   if (this.vegetation === Vegetation.Forest) {
-  //     if (this.spreadRate < 25) {
-  //       return BurnIndex.Low;
-  //     }
-  //     return BurnIndex.Medium;
-  //   }
-  //   // this.vegetation === Vegetation.ForestWithSuppression
-  //   if (this.spreadRate < 12) {
-  //     return BurnIndex.Low;
-  //   }
-  //   if (this.spreadRate < 40) {
-  //     return BurnIndex.Medium;
-  //   }
-  //   return BurnIndex.High;
-  // }
-
-    public get burnIndex(): BurnIndex {
+  public get burnIndex(): BurnIndex {
     switch (this.vegetation) {
       case VegetationType.Grasslands:
         return this.spreadRate < 45 ? BurnIndex.Low : BurnIndex.Medium;

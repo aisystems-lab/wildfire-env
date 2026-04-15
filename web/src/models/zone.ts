@@ -1,4 +1,4 @@
-import { Vegetation, TerrainType, DroughtLevel, VegetationType } from "../types";
+import { TerrainType, DroughtLevel, VegetationType } from "../types";
 import { observable, makeObservable } from "mobx";
 
 export interface ZoneOptions {

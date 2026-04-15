@@ -254,8 +254,7 @@ export const getFireSpreadRate = (
   cellSize: number
 ) => {
   const fuel = FuelConstants[targetCell.zone.vegetation];
-  console.log(fuel);
-  
+
   const sav = fuel.sav;
   const packingRatio = fuel.packingRatio;
   const netFuelLoad = fuel.netFuelLoad;

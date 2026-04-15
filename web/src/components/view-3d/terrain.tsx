@@ -14,19 +14,6 @@ import { useHelitackInteraction } from "./use-helitack-interaction";
 
 const vertexIdx = (cell: Cell, gridWidth: number, gridHeight: number) => (gridHeight - 1 - cell.y) * gridWidth + cell.x;
 
-// const getTerrainColor = (droughtLevel: number) => {
-//   switch (droughtLevel) {
-//     case DroughtLevel.NoDrought:
-//       return [0.008, 0.831, 0.039];
-//     case DroughtLevel.MildDrought:
-//       return [0.573, 0.839, 0.216];
-//     case DroughtLevel.MediumDrought:
-//       return [0.757, 0.886, 0.271];
-//     default:
-//       return [0.784, 0.631, 0.271];
-//   }
-// };
-
 const getTerrainColor = (landcoverType: number): [number, number, number] => {
   switch (landcoverType) {
     case 1: return [0.0, 0.392, 0.0];       // Evergreen Needleleaf Forest
